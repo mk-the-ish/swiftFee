@@ -48,20 +48,27 @@ import {
 import { useAppContext } from '@/context/app-context';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
-import type { Payment, Student } from '@/lib/types';
+import type { Payment, Student, Transaction } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const paymentFormSchema = z.object({
   studentId: z.string({ required_error: 'Please select a student.' }),
+  receiptNumber: z.string().min(1, { message: 'Receipt number is required.' }),
   feeType: z.enum(['tuition', 'levy', 'building', 'exam'], {
     required_error: 'Please select a fee type.',
   }),
+  paymentMethod: z.enum(['Cash', 'Bank Transfer', 'Ecocash'], {
+    required_error: 'Please select a payment method.',
+  }),
   amount: z.coerce.number().positive({ message: 'Amount must be positive.' }),
   currency: z.enum(['USD', 'ZWG']),
-  bankAccountId: z.string({ required_error: 'Please select a bank account.' }),
-  receiptNumber: z.string().min(1, { message: 'Receipt number is required.' }),
+  bankAccountId: z.string().optional(),
+}).refine(data => data.paymentMethod === 'Cash' || !!data.bankAccountId, {
+    message: "Bank account is required for this payment method.",
+    path: ["bankAccountId"],
 });
+
 
 function StudentSelector({
   onSelect,
@@ -132,7 +139,7 @@ function StudentSelector({
 
 
 export default function PaymentsPage() {
-  const { students, setStudents, bankAccounts, payments, setPayments, exchangeRate } =
+  const { students, setStudents, bankAccounts, payments, setPayments, setTransactions, exchangeRate } =
     useAppContext();
   const { toast } = useToast();
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -142,12 +149,11 @@ export default function PaymentsPage() {
     defaultValues: {
       currency: 'USD',
       receiptNumber: '',
-      studentId: undefined,
-      feeType: undefined,
-      amount: undefined,
-      bankAccountId: undefined,
     },
   });
+  
+  const paymentMethod = form.watch('paymentMethod');
+
 
   function onSubmit(values: z.infer<typeof paymentFormSchema>) {
     const student = students.find((s) => s.id === values.studentId);
@@ -158,20 +164,38 @@ export default function PaymentsPage() {
     
     const amountInUSD = values.currency === 'ZWG' ? values.amount / exchangeRate : values.amount;
 
+    const paymentId = `P${Date.now()}`;
+
     // Create new payment record
     const newPayment: Payment = {
-      id: `P${Date.now()}`,
+      id: paymentId,
       studentId: student.id,
       studentName: student.name,
       feeType: values.feeType,
+      paymentMethod: values.paymentMethod,
       amount: values.amount,
       currency: values.currency,
       amountInUSD,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString(),
       bankAccountId: values.bankAccountId,
       receiptNumber: values.receiptNumber,
+      deposited: values.paymentMethod !== 'Cash', // Cash payments are deposited later
     };
     setPayments((prev) => [newPayment, ...prev]);
+    
+    // If not cash, create transaction immediately
+    if(values.paymentMethod !== 'Cash' && values.bankAccountId) {
+        const newTransaction: Transaction = {
+            id: `T${Date.now()}`,
+            date: new Date().toISOString(),
+            bankAccountId: values.bankAccountId,
+            type: 'incoming',
+            description: `Fee payment from ${student.name} (Receipt: ${values.receiptNumber})`,
+            amount: amountInUSD,
+            relatedPaymentId: paymentId,
+        };
+        setTransactions(prev => [newTransaction, ...prev]);
+    }
 
     // Update student's owing balance
     setStudents((prevStudents) =>
@@ -197,6 +221,7 @@ export default function PaymentsPage() {
       feeType: undefined,
       amount: undefined,
       bankAccountId: undefined,
+      paymentMethod: undefined,
     });
     setSelectedStudent(null);
   }
@@ -251,7 +276,7 @@ export default function PaymentsPage() {
                     <FormItem>
                       <FormLabel>Receipt Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., REC-00123" {...field} />
+                        <Input placeholder="e.g., REC-00123" {...field} value={field.value ?? ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -274,6 +299,28 @@ export default function PaymentsPage() {
                           <SelectItem value="levy">Levy</SelectItem>
                           <SelectItem value="building">Building Fund</SelectItem>
                           <SelectItem value="exam">Exam Fee</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="paymentMethod"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Method</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a payment method" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Cash">Cash</SelectItem>
+                          <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                          <SelectItem value="Ecocash">Ecocash</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -323,30 +370,32 @@ export default function PaymentsPage() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="bankAccountId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Bank Account</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a bank account" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {bankAccounts.map((b) => (
-                            <SelectItem key={b.id} value={b.id}>
-                              {b.bankName} - {b.accountNumber} ({b.currency})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {paymentMethod !== 'Cash' && (
+                  <FormField
+                    control={form.control}
+                    name="bankAccountId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bank Account</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a bank account" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {bankAccounts.map((b) => (
+                              <SelectItem key={b.id} value={b.id}>
+                                {b.bankName} - {b.accountNumber} ({b.currency})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                     {form.formState.isSubmitting ? 'Recording...' : 'Record Payment'}
                 </Button>
@@ -367,7 +416,7 @@ export default function PaymentsPage() {
                 <TableRow>
                   <TableHead>Student</TableHead>
                   <TableHead>Receipt #</TableHead>
-                  <TableHead>Fee Type</TableHead>
+                  <TableHead>Method</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead className="text-right">Amount (USD)</TableHead>
                 </TableRow>
@@ -377,12 +426,12 @@ export default function PaymentsPage() {
                   <TableRow key={p.id}>
                     <TableCell>
                       <div className="font-medium">{p.studentName}</div>
-                      <div className="text-sm text-muted-foreground">{p.date}</div>
+                      <div className="text-sm text-muted-foreground">{new Date(p.date).toLocaleDateString()}</div>
                     </TableCell>
                     <TableCell>
                         <Badge variant="secondary">{p.receiptNumber}</Badge>
                     </TableCell>
-                    <TableCell><Badge variant="outline" className="capitalize">{p.feeType}</Badge></TableCell>
+                    <TableCell><Badge variant="outline" className="capitalize">{p.paymentMethod}</Badge></TableCell>
                     <TableCell className="text-right">{formatCurrency(p.amount, p.currency)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(p.amountInUSD)}</TableCell>
                   </TableRow>

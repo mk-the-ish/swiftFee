@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useMemo } from 'react';
-import type { Student, Payment, BankAccount } from '@/lib/types';
+import type { Student, Payment, BankAccount, Transaction } from '@/lib/types';
 import { STUDENTS, BANK_ACCOUNTS } from '@/lib/data';
 
 interface AppContextType {
@@ -11,6 +11,8 @@ interface AppContextType {
   setPayments: React.Dispatch<React.SetStateAction<Payment[]>>;
   bankAccounts: BankAccount[];
   setBankAccounts: React.Dispatch<React.SetStateAction<BankAccount[]>>;
+  transactions: Transaction[];
+  setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
   exchangeRate: number;
   setExchangeRate: React.Dispatch<React.SetStateAction<number>>;
 }
@@ -21,6 +23,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [students, setStudents] = useState<Student[]>(STUDENTS);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(BANK_ACCOUNTS);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [exchangeRate, setExchangeRate] = useState<number>(13.5);
 
   const contextValue = useMemo(() => ({
@@ -30,9 +33,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPayments,
     bankAccounts,
     setBankAccounts,
+    transactions,
+    setTransactions,
     exchangeRate,
     setExchangeRate,
-  }), [students, payments, bankAccounts, exchangeRate]);
+  }), [students, payments, bankAccounts, transactions, exchangeRate]);
 
   return (
     <AppContext.Provider value={contextValue}>

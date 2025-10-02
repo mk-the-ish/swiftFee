@@ -4,6 +4,7 @@ import * as React from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
+  Banknote,
   BookOpen,
   LayoutDashboard,
   PanelLeft,
@@ -39,6 +40,7 @@ const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/payments', icon: Wallet, label: 'Payments' },
   { href: '/students', icon: Users, label: 'Students' },
+  { href: '/banking', icon: Banknote, label: 'Banking' },
   { href: '/reports', icon: BookOpen, label: 'Reports' },
   { href: '/admin', icon: Settings, label: 'Admin' },
 ];
@@ -47,6 +49,7 @@ const pageTitles: { [key: string]: string } = {
   '/dashboard': 'Dashboard',
   '/payments': 'Fee Payments',
   '/students': 'Student Management',
+  '/banking': 'Banking & Transactions',
   '/reports': 'Financial Reports',
   '/admin': 'System Administration',
 };
