@@ -139,7 +139,7 @@ function StudentSelector({
 
 
 export default function PaymentsPage() {
-  const { students, setStudents, bankAccounts, payments, setPayments, setTransactions, exchangeRate } =
+  const { students, updateStudentBalances, bankAccounts, payments, addPayment, addTransaction, exchangeRate } =
     useAppContext();
   const { toast } = useToast();
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -155,20 +155,18 @@ export default function PaymentsPage() {
   const paymentMethod = form.watch('paymentMethod');
 
 
-  function onSubmit(values: z.infer<typeof paymentFormSchema>) {
+  async function onSubmit(values: z.infer<typeof paymentFormSchema>) {
     const student = students.find((s) => s.id === values.studentId);
     if (!student) {
       toast({ variant: 'destructive', title: 'Error', description: 'Student not found.' });
       return;
     }
     
-    const amountInUSD = values.currency === 'ZWG' ? values.amount / exchangeRate : values.amount;
-
-    const paymentId = `P${Date.now()}`;
+    const rate = exchangeRate?.rate || 1;
+    const amountInUSD = values.currency === 'ZWG' ? values.amount / rate : values.amount;
 
     // Create new payment record
-    const newPayment: Payment = {
-      id: paymentId,
+    const newPayment: Omit<Payment, 'id'> = {
       studentId: student.id,
       studentName: student.name,
       feeType: values.feeType,
@@ -181,34 +179,25 @@ export default function PaymentsPage() {
       receiptNumber: values.receiptNumber,
       deposited: values.paymentMethod !== 'Cash', // Cash payments are deposited later
     };
-    setPayments((prev) => [newPayment, ...prev]);
+    await addPayment(newPayment);
     
     // If not cash, create transaction immediately
     if(values.paymentMethod !== 'Cash' && values.bankAccountId) {
-        const newTransaction: Transaction = {
-            id: `T${Date.now()}`,
+        const newTransaction: Omit<Transaction, 'id'> = {
             date: new Date().toISOString(),
             bankAccountId: values.bankAccountId,
             type: 'incoming',
             description: `Fee payment from ${student.name} (Receipt: ${values.receiptNumber})`,
             amount: amountInUSD,
-            relatedPaymentId: paymentId,
+            // We don't have the paymentId yet, this could be improved with a cloud function
         };
-        setTransactions(prev => [newTransaction, ...prev]);
+        await addTransaction(newTransaction);
     }
 
     // Update student's owing balance
-    setStudents((prevStudents) =>
-      prevStudents.map((s) => {
-        if (s.id === values.studentId && values.feeType !== 'exam') {
-          const owingKey = `${values.feeType}Owing` as keyof Student;
-          const currentOwing = s[owingKey] as number;
-          const newOwing = Math.max(0, currentOwing - amountInUSD);
-          return { ...s, [owingKey]: newOwing };
-        }
-        return s;
-      })
-    );
+    if (values.feeType !== 'exam') {
+        await updateStudentBalances(values.studentId, values.feeType, amountInUSD);
+    }
 
     toast({
       title: 'Payment Recorded',

@@ -64,7 +64,7 @@ const expenseFormSchema = z.object({
 });
 
 function RecordExpense() {
-  const { bankAccounts, setTransactions } = useAppContext();
+  const { bankAccounts, addTransaction } = useAppContext();
   const { toast } = useToast();
   const form = useForm<z.infer<typeof expenseFormSchema>>({
     resolver: zodResolver(expenseFormSchema),
@@ -73,16 +73,15 @@ function RecordExpense() {
     }
   });
 
-  function onSubmit(values: z.infer<typeof expenseFormSchema>) {
-    const newTransaction: Transaction = {
-      id: `T${Date.now()}`,
+  async function onSubmit(values: z.infer<typeof expenseFormSchema>) {
+    const newTransaction: Omit<Transaction, 'id'> = {
       date: new Date().toISOString(),
       bankAccountId: values.bankAccountId,
       type: 'outgoing',
       description: values.description,
       amount: values.amount,
     };
-    setTransactions((prev) => [newTransaction, ...prev]);
+    await addTransaction(newTransaction);
     toast({
       title: 'Expense Recorded',
       description: `${formatCurrency(values.amount)} has been recorded as an expense.`,
@@ -162,7 +161,7 @@ function RecordExpense() {
 }
 
 function DailyDeposits() {
-  const { payments, setPayments, bankAccounts, setTransactions } = useAppContext();
+  const { payments, markPaymentsAsDeposited, bankAccounts, addTransaction } = useAppContext();
   const { toast } = useToast();
   const [selectedAccountId, setSelectedAccountId] = React.useState<string | null>(null);
 
@@ -175,7 +174,7 @@ function DailyDeposits() {
     0
   );
 
-  const handleDeposit = () => {
+  const handleDeposit = async () => {
     if (!selectedAccountId) {
       toast({ variant: 'destructive', title: 'Error', description: 'Please select a bank account to deposit into.' });
       return;
@@ -185,22 +184,18 @@ function DailyDeposits() {
       return;
     }
 
-    const newTransaction: Transaction = {
-      id: `T${Date.now()}`,
+    const newTransaction: Omit<Transaction, 'id'> = {
       date: new Date().toISOString(),
       bankAccountId: selectedAccountId,
       type: 'incoming',
       description: `Daily cash deposit from fees`,
       amount: totalCashToDeposit,
     };
-    setTransactions(prev => [newTransaction, ...prev]);
+    await addTransaction(newTransaction);
 
     // Mark payments as deposited
-    setPayments(prevPayments =>
-      prevPayments.map(p =>
-        cashPaymentsToDeposit.some(dp => dp.id === p.id) ? { ...p, deposited: true } : p
-      )
-    );
+    const paymentIdsToMark = cashPaymentsToDeposit.map(p => p.id);
+    await markPaymentsAsDeposited(paymentIdsToMark);
 
     toast({
       title: 'Cash Deposited',

@@ -1,5 +1,8 @@
 import type { Student, BankAccount } from './types';
 
+// This file is no longer the source of truth, but can be used for reference
+// or to seed the database during development.
+
 export const STUDENTS: Student[] = [
   { id: 'S001', name: 'John Doe', grade: 'Grade 5', dateOfBirth: '2014-05-10', gender: 'Male', guardianName: 'Richard Doe', guardianPhone: '555-1234', address: '123 Main St, Harare', tuitionOwing: 250, levyOwing: 50, buildingFundOwing: 100 },
   { id: 'S002', name: 'Jane Smith', grade: 'Grade 7', dateOfBirth: '2012-09-22', gender: 'Female', guardianName: 'Sarah Smith', guardianPhone: '555-5678', address: '456 Oak Ave, Bulawayo', tuitionOwing: 0, levyOwing: 25, buildingFundOwing: 0 },

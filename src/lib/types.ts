@@ -52,3 +52,8 @@ export type Transaction = {
   amount: number; // Always in USD for consistency
   relatedPaymentId?: string;
 };
+
+export type ExchangeRate = {
+    rate: number;
+    lastUpdated: string;
+};

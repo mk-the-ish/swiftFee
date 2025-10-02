@@ -53,7 +53,6 @@ import { useAppContext } from '@/context/app-context';
 import { useToast } from '@/hooks/use-toast';
 import { gradeProgression } from '@/lib/types';
 import type { BankAccount, Grade } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 
@@ -71,7 +70,7 @@ const bankAccountFormSchema = z.object({
 })
 
 function NewTermBilling() {
-  const { setStudents } = useAppContext();
+  const { bulkBillStudents } = useAppContext();
   const { toast } = useToast();
   const form = useForm<z.infer<typeof billingFormSchema>>({
     resolver: zodResolver(billingFormSchema),
@@ -82,15 +81,8 @@ function NewTermBilling() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof billingFormSchema>) {
-    setStudents((prev) =>
-      prev.map((student) => ({
-        ...student,
-        tuitionOwing: student.tuitionOwing + values.tuition,
-        levyOwing: student.levyOwing + values.levy,
-        buildingFundOwing: student.buildingFundOwing + values.buildingFund,
-      }))
-    );
+  async function onSubmit(values: z.infer<typeof billingFormSchema>) {
+    await bulkBillStudents(values);
     toast({
       title: 'Term Billed Successfully',
       description: 'All students have been billed for the new term.',
@@ -160,21 +152,11 @@ function NewTermBilling() {
 }
 
 function NewYearUpgrade() {
-  const { setStudents } = useAppContext();
+  const { bulkUpgradeGrades } = useAppContext();
   const { toast } = useToast();
 
-  const handleUpgrade = () => {
-    setStudents((prevStudents) =>
-      prevStudents.map((student) => {
-        const currentGradeIndex = gradeProgression.indexOf(student.grade);
-        const nextGradeIndex = currentGradeIndex + 1;
-        const newGrade =
-          nextGradeIndex < gradeProgression.length
-            ? gradeProgression[nextGradeIndex]
-            : student.grade; // Stay in Grade 7 if already there
-        return { ...student, grade: newGrade };
-      })
-    );
+  const handleUpgrade = async () => {
+    await bulkUpgradeGrades();
     toast({
       title: 'Students Upgraded',
       description: 'All students have been moved to the next grade.',
@@ -222,7 +204,7 @@ function NewYearUpgrade() {
 }
 
 function BankAccountManagement() {
-    const { bankAccounts, setBankAccounts } = useAppContext();
+    const { bankAccounts, addBankAccount } = useAppContext();
     const { toast } = useToast();
     const form = useForm<z.infer<typeof bankAccountFormSchema>>({
         resolver: zodResolver(bankAccountFormSchema),
@@ -234,12 +216,8 @@ function BankAccountManagement() {
         }
     });
 
-    function onSubmit(values: z.infer<typeof bankAccountFormSchema>) {
-        const newAccount: BankAccount = {
-            id: `B${Date.now()}`,
-            ...values,
-        };
-        setBankAccounts(prev => [...prev, newAccount]);
+    async function onSubmit(values: z.infer<typeof bankAccountFormSchema>) {
+        await addBankAccount(values);
         toast({
             title: "Bank Account Added",
             description: `${values.bankName} account has been added.`

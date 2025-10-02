@@ -50,7 +50,6 @@ function CashFlowChart() {
     const last7Days = Array.from({ length: 7 }, (_, i) => subDays(today, i)).reverse();
     
     const dailyData = last7Days.map(day => {
-      const dateString = format(day, 'yyyy-MM-dd');
       return {
         date: format(day, 'MMM d'),
         incoming: 0,
@@ -123,7 +122,13 @@ function CashFlowChart() {
 export default function DashboardPage() {
   const { students, exchangeRate, setExchangeRate } = useAppContext();
   const { toast } = useToast();
-  const [rateInput, setRateInput] = React.useState(exchangeRate.toString());
+  const [rateInput, setRateInput] = React.useState(exchangeRate?.rate.toString() || '');
+
+  React.useEffect(() => {
+    if (exchangeRate) {
+        setRateInput(exchangeRate.rate.toString());
+    }
+  }, [exchangeRate]);
 
   const totalStudents = students.length;
   const totalOwed = students.reduce(
@@ -134,11 +139,11 @@ export default function DashboardPage() {
     (s) => s.tuitionOwing > 0 || s.levyOwing > 0 || s.buildingFundOwing > 0
   ).length;
 
-  const handleSetRate = (e: React.FormEvent) => {
+  const handleSetRate = async (e: React.FormEvent) => {
     e.preventDefault();
     const newRate = parseFloat(rateInput);
     if (!isNaN(newRate) && newRate > 0) {
-      setExchangeRate(newRate);
+      await setExchangeRate(newRate);
       toast({
         title: 'Success',
         description: `Exchange rate updated to 1 USD = ${newRate} ZWG.`,
@@ -185,7 +190,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {formatCurrency(exchangeRate, 'ZWG')}
+            {formatCurrency(exchangeRate?.rate || 0, 'ZWG')}
           </div>
           <p className="text-xs text-muted-foreground">
             Current USD to ZWG exchange rate
