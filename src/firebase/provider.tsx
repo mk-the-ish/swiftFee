@@ -4,6 +4,7 @@ import React, { createContext, useContext } from 'react';
 import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 interface FirebaseContextType {
   firebaseApp: FirebaseApp | null;
@@ -26,6 +27,7 @@ export const FirebaseProvider: React.FC<{
   return (
     <FirebaseContext.Provider value={{ firebaseApp, auth, firestore }}>
       {children}
+      {process.env.NODE_ENV === 'development' && <FirebaseErrorListener />}
     </FirebaseContext.Provider>
   );
 };

@@ -15,6 +15,8 @@ import {
   type Firestore,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { errorEmitter } from '../error-emitter';
+import { FirestorePermissionError } from '../errors';
 
 // Custom hook for a collection
 export function useCollection<T extends DocumentData>(
@@ -43,6 +45,9 @@ export function useCollection<T extends DocumentData>(
         setLoading(false);
       },
       (err) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'list' }));
+        }
         setError(err);
         setLoading(false);
       }
@@ -53,17 +58,39 @@ export function useCollection<T extends DocumentData>(
 
   const add = async (data: Omit<T, 'id'>) => {
     if (!ref) throw new Error("Collection reference not available");
-    return addDoc(ref, { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    const docData = { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+    return addDoc(ref, docData)
+        .catch(err => {
+            if (err.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'create', requestResourceData: docData }));
+            }
+            throw err;
+        });
   };
   
   const update = async (id: string, data: Partial<T>) => {
     if (!ref) throw new Error("Collection reference not available");
-    return updateDoc(doc(ref, id), { ...data, updatedAt: serverTimestamp() });
+    const docRef = doc(ref, id);
+    const updateData = { ...data, updatedAt: serverTimestamp() };
+    return updateDoc(docRef, updateData)
+        .catch(err => {
+            if (err.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update', requestResourceData: updateData }));
+            }
+            throw err;
+        });
   };
 
   const remove = async (id: string) => {
     if (!ref) throw new Error("Collection reference not available");
-    return deleteDoc(doc(ref, id));
+     const docRef = doc(ref, id);
+    return deleteDoc(docRef)
+        .catch(err => {
+            if (err.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' }));
+            }
+            throw err;
+        });
   };
 
 
@@ -97,6 +124,9 @@ export function useDoc<T extends DocumentData>(
         setLoading(false);
       },
       (err) => {
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'get' }));
+        }
         setError(err);
         setLoading(false);
       }
