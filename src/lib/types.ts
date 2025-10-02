@@ -25,6 +25,7 @@ export type Payment = {
   id: string;
   studentId: string;
   studentName: string;
+  receiptNumber: string;
   feeType: FeeType;
   amount: number;
   currency: 'USD' | 'ZWG';

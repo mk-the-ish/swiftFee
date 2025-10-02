@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -38,11 +38,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { useAppContext } from '@/context/app-context';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import type { Payment, Student } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const paymentFormSchema = z.object({
   studentId: z.string({ required_error: 'Please select a student.' }),
@@ -52,17 +60,88 @@ const paymentFormSchema = z.object({
   amount: z.coerce.number().positive({ message: 'Amount must be positive.' }),
   currency: z.enum(['USD', 'ZWG']),
   bankAccountId: z.string({ required_error: 'Please select a bank account.' }),
+  receiptNumber: z.string().min(1, { message: 'Receipt number is required.' }),
 });
+
+function StudentSelector({
+  onSelect,
+}: {
+  onSelect: (student: Student) => void;
+}) {
+  const { students } = useAppContext();
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredStudents = useMemo(() => {
+    return students.filter(
+      (s) =>
+        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.grade.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [students, searchTerm]);
+
+  const handleSelect = (student: Student) => {
+    onSelect(student);
+    setIsOpen(false);
+    setSearchTerm('');
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="w-full justify-start text-left font-normal">
+          Select a student
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Select Student</DialogTitle>
+        </DialogHeader>
+        <div className="p-4 pt-0">
+          <Input
+            placeholder="Search by name or grade..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="mb-4"
+          />
+          <ScrollArea className="h-72">
+            <div className="space-y-2">
+              {filteredStudents.map((student) => (
+                <Button
+                  key={student.id}
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => handleSelect(student)}
+                >
+                  <div>
+                    <div className="font-medium">{student.name}</div>
+                    <div className="text-sm text-muted-foreground">{student.grade}</div>
+                  </div>
+                </Button>
+              ))}
+              {filteredStudents.length === 0 && (
+                <p className="text-center text-sm text-muted-foreground">No students found.</p>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export default function PaymentsPage() {
   const { students, setStudents, bankAccounts, payments, setPayments, exchangeRate } =
     useAppContext();
   const { toast } = useToast();
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
   const form = useForm<z.infer<typeof paymentFormSchema>>({
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
       currency: 'USD',
+      receiptNumber: '',
     },
   });
 
@@ -86,6 +165,7 @@ export default function PaymentsPage() {
       amountInUSD,
       date: new Date().toISOString().split('T')[0],
       bankAccountId: values.bankAccountId,
+      receiptNumber: values.receiptNumber,
     };
     setPayments((prev) => [newPayment, ...prev]);
 
@@ -106,8 +186,15 @@ export default function PaymentsPage() {
       title: 'Payment Recorded',
       description: `${formatCurrency(values.amount, values.currency)} from ${student.name} has been successfully recorded.`,
     });
-    form.reset({currency: 'USD'});
+    form.reset({currency: 'USD', receiptNumber: ''});
+    setSelectedStudent(null);
   }
+
+  const handleStudentSelect = (student: Student) => {
+    setSelectedStudent(student);
+    form.setValue('studentId', student.id);
+    form.clearErrors('studentId');
+  };
 
   return (
     <div className="grid gap-8 md:grid-cols-3">
@@ -124,22 +211,37 @@ export default function PaymentsPage() {
                   control={form.control}
                   name="studentId"
                   render={({ field }) => (
-                    <FormItem>
+                     <FormItem>
                       <FormLabel>Student</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a student" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {students.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.name} - {s.grade}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                       <FormControl>
+                        {selectedStudent ? (
+                          <div className='flex items-center justify-between'>
+                            <div>
+                                <p className='font-medium'>{selectedStudent.name}</p>
+                                <p className='text-sm text-muted-foreground'>{selectedStudent.grade}</p>
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              setSelectedStudent(null);
+                              form.resetField('studentId');
+                            }}>Change</Button>
+                          </div>
+                        ) : (
+                          <StudentSelector onSelect={handleStudentSelect} />
+                        )}
+                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="receiptNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Receipt Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., REC-00123" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -253,6 +355,7 @@ export default function PaymentsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Student</TableHead>
+                  <TableHead>Receipt #</TableHead>
                   <TableHead>Fee Type</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead className="text-right">Amount (USD)</TableHead>
@@ -265,6 +368,9 @@ export default function PaymentsPage() {
                       <div className="font-medium">{p.studentName}</div>
                       <div className="text-sm text-muted-foreground">{p.date}</div>
                     </TableCell>
+                    <TableCell>
+                        <Badge variant="secondary">{p.receiptNumber}</Badge>
+                    </TableCell>
                     <TableCell><Badge variant="outline" className="capitalize">{p.feeType}</Badge></TableCell>
                     <TableCell className="text-right">{formatCurrency(p.amount, p.currency)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(p.amountInUSD)}</TableCell>
@@ -272,7 +378,7 @@ export default function PaymentsPage() {
                 ))}
                 {payments.length === 0 && (
                     <TableRow>
-                        <TableCell colSpan={4} className="text-center">No payments recorded yet.</TableCell>
+                        <TableCell colSpan={5} className="text-center">No payments recorded yet.</TableCell>
                     </TableRow>
                 )}
               </TableBody>
