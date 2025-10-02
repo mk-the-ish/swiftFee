@@ -51,6 +51,14 @@ const pageTitles: { [key: string]: string } = {
   '/admin': 'System Administration',
 };
 
+function getPageTitle(pathname: string): string {
+    if (pathname.startsWith('/students/')) {
+        return 'Student Profile';
+    }
+    return pageTitles[pathname] || 'SwiftFee Manager';
+}
+
+
 export default function AppLayout({
   children,
 }: {
@@ -128,7 +136,7 @@ export default function AppLayout({
               </SheetContent>
             </Sheet>
             <h1 className="text-xl font-semibold md:text-2xl">
-              {pageTitles[pathname] || 'SwiftFee Manager'}
+              {getPageTitle(pathname)}
             </h1>
             <div className="relative ml-auto flex-1 md:grow-0" />
             <DropdownMenu>

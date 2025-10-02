@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import {
   Table,
   TableBody,
@@ -28,7 +29,7 @@ type SortKey = keyof Student | 'totalOwing';
 export default function StudentsPage() {
   const { students } = useAppContext();
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
 
   const filteredAndSortedStudents = useMemo(() => {
     let sortableStudents = [...students].map(student => ({
@@ -117,7 +118,11 @@ export default function StudentsPage() {
           <TableBody>
             {filteredAndSortedStudents.map((student) => (
               <TableRow key={student.id}>
-                <TableCell className="font-medium">{student.name}</TableCell>
+                <TableCell className="font-medium">
+                  <Link href={`/students/${student.id}`} className="hover:underline text-primary">
+                    {student.name}
+                  </Link>
+                </TableCell>
                 <TableCell>{student.grade}</TableCell>
                 <TableCell>{formatCurrency(student.tuitionOwing)}</TableCell>
                 <TableCell>{formatCurrency(student.levyOwing)}</TableCell>

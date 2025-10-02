@@ -8,6 +8,11 @@ export type Student = {
   id: string;
   name: string;
   grade: Grade;
+  dateOfBirth: string;
+  gender: 'Male' | 'Female';
+  guardianName: string;
+  guardianPhone: string;
+  address: string;
   tuitionOwing: number;
   levyOwing: number;
   buildingFundOwing: number;
