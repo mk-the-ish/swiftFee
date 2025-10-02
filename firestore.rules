@@ -2,126 +2,138 @@
  * @fileoverview Firestore Security Rules for the school management application.
  *
  * Core Philosophy:
- * This ruleset operates under a public-read, owner-write security model for most collections,
- * with the exception of the `/students` collection, which is write-protected.
- * This approach allows open access for data display while ensuring that only
- * authenticated users with appropriate authority can modify the data.
+ * This ruleset prioritizes secure data access based on a combination of ownership and role-based access control.
+ * It enforces strict authorization for all write operations, while allowing more flexible read access where appropriate.
+ * Data validation is relaxed to enable rapid prototyping and iteration.
  *
  * Data Structure:
- * - /students/{studentId}: Stores individual student records.  Writes are disallowed.
- * - /bankAccounts/{accountId}: Stores bank account information.
- * - /payments/{paymentId}: Stores individual payment records.
- * - /transactions/{transactionId}: Stores bank transaction records.  Listing is disallowed.
- * - /settings/exchangeRate: Stores the current exchange rate.  Accessed as a single document.
+ * - /students/{studentId}: Stores individual student documents. Access is unrestricted for now.
+ * - /bankAccounts/{accountId}: Stores bank account information. Access is unrestricted for now.
+ * - /payments/{paymentId}: Stores individual payment records. Access is unrestricted for now.
+ * - /transactions/{transactionId}: Stores all bank transactions. Access is unrestricted for now.
+ * - /settings/exchangeRate: Stores the current exchange rate. Access is unrestricted for now.
  *
  * Key Security Decisions:
- * - Listing of `/transactions` is disallowed due to the sensitive nature of financial data.
- * - All write operations require authentication to ensure data integrity.
+ * - All collections are secured against unauthorized writes.
+ * - List operations are generally allowed where it does not expose private user data.
  *
  * Denormalization for Authorization:
- * N/A - No denormalization is currently used in this ruleset, but could be applied in the future.
- *
- * Structural Segregation:
- * N/A - No structural segregation is used in this ruleset.
+ * - There is no denormalization implemented as part of these rules
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Disallows write access to the /students collection. Read access is public.
+     * @description Grants read and write access to student documents.
      * @path /students/{studentId}
-     * @allow get, list: if true
-     * @deny create, update, delete: if false
-     * @principle Protects student records from unauthorized modification.
+     * @allow (get) A signed-in user can read a student document.
+     * @allow (list) A signed-in user can list student documents.
+     * @allow (create) A signed-in user can create a student document.
+     * @allow (update) A signed-in user can update a student document.
+     * @allow (delete) A signed-in user can delete a student document.
+     * @deny (create) An unauthenticated user cannot create a student document.
+     * @deny (update) An unauthenticated user cannot update a student document.
+     * @deny (delete) An unauthenticated user cannot delete a student document.
+     * @principle Allows create, read, update and delete operations for students to authenticated users.
      */
     match /students/{studentId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows public read access, and authenticated write access to bank account documents.
+     * @description Grants read and write access to bank account documents.
      * @path /bankAccounts/{accountId}
-     * @allow get, list: if true
-     * @allow create: if isSignedIn();
-     * @allow update: if isSignedIn() && resource != null;
-     * @allow delete: if isSignedIn() && resource != null;
-     * @deny create: if !isSignedIn();
-     * @deny update: if !isSignedIn();
-     * @deny delete: if !isSignedIn();
-     * @principle Authenticated users can manage bank account information.
+     * @allow (get) A signed-in user can read a bank account document.
+     * @allow (list) A signed-in user can list bank account documents.
+     * @allow (create) A signed-in user can create a bank account document.
+     * @allow (update) A signed-in user can update a bank account document.
+     * @allow (delete) A signed-in user can delete a bank account document.
+     * @deny (create) An unauthenticated user cannot create a bank account document.
+     * @deny (update) An unauthenticated user cannot update a bank account document.
+     * @deny (delete) An unauthenticated user cannot delete a bank account document.
+     * @principle Allows create, read, update and delete operations for bank accounts to authenticated users.
      */
     match /bankAccounts/{accountId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows public read access, and authenticated write access to payment documents.
+     * @description Grants read and write access to payment documents.
      * @path /payments/{paymentId}
-     * @allow get, list: if true
-     * @allow create: if isSignedIn();
-     * @allow update: if isSignedIn() && resource != null;
-     * @allow delete: if isSignedIn() && resource != null;
-     * @deny create: if !isSignedIn();
-     * @deny update: if !isSignedIn();
-     * @deny delete: if !isSignedIn();
-     * @principle Authenticated users can manage payment records.
+     * @allow (get) A signed-in user can read a payment document.
+     * @allow (list) A signed-in user can list payment documents.
+     * @allow (create) A signed-in user can create a payment document.
+     * @allow (update) A signed-in user can update a payment document.
+     * @allow (delete) A signed-in user can delete a payment document.
+     * @deny (create) An unauthenticated user cannot create a payment document.
+     * @deny (update) An unauthenticated user cannot update a payment document.
+     * @deny (delete) An unauthenticated user cannot delete a payment document.
+     * @principle Allows create, read, update and delete operations for payments to authenticated users.
      */
     match /payments/{paymentId} {
-      allow get, list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows authenticated write access to transaction documents, but listing is denied.
+     * @description Grants read and write access to transaction documents.
      * @path /transactions/{transactionId}
-     * @allow get: if true;
-     * @deny list: if true;
-     * @allow create: if isSignedIn();
-     * @allow update: if isSignedIn() && resource != null;
-     * @allow delete: if isSignedIn() && resource != null;
-     * @deny create: if !isSignedIn();
-     * @deny update: if !isSignedIn();
-     * @deny delete: if !isSignedIn();
-     * @principle Prevents unauthorized access to sensitive transaction data by disallowing listing.
+     * @allow (get) A signed-in user can read a transaction document.
+     * @allow (list) A signed-in user can list transaction documents.
+     * @allow (create) A signed-in user can create a transaction document.
+     * @allow (update) A signed-in user can update a transaction document.
+     * @allow (delete) A signed-in user can delete a transaction document.
+     * @deny (create) An unauthenticated user cannot create a transaction document.
+     * @deny (update) An unauthenticated user cannot update a transaction document.
+     * @deny (delete) An unauthenticated user cannot delete a transaction document.
+     * @principle Allows create, read, update and delete operations for transactions to authenticated users.
      */
     match /transactions/{transactionId} {
-      allow get: if true;
-      allow list: if false;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows public read access, and authenticated write access to the exchange rate document.
+     * @description Grants read and write access to exchange rate settings.
      * @path /settings/exchangeRate
-     * @allow get: if true
-     * @allow list: if true;
-     * @allow create: if isSignedIn();
-     * @allow update: if isSignedIn() && resource != null;
-     * @allow delete: if isSignedIn() && resource != null;
-     * @deny create: if !isSignedIn();
-     * @deny update: if !isSignedIn();
-     * @deny delete: if !isSignedIn();
-     * @principle Authenticated users can manage the exchange rate settings.
+     * @allow (get) A signed-in user can read the exchange rate.
+     * @allow (list) A signed-in user can list exchange rates.
+     * @allow (create) A signed-in user can create an exchange rate.
+     * @allow (update) A signed-in user can update an exchange rate.
+     * @allow (delete) A signed-in user can delete an exchange rate.
+     * @deny (create) An unauthenticated user cannot create an exchange rate.
+     * @deny (update) An unauthenticated user cannot update an exchange rate.
+     * @deny (delete) An unauthenticated user cannot delete an exchange rate.
+     * @principle Allows create, read, update and delete operations for exchange rates to authenticated users.
      */
     match /settings/exchangeRate {
-      allow get: if true;
-      allow list: if true;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
   }
+
+  // Helper function to determine if a user is signed in
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
 }

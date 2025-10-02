@@ -75,7 +75,7 @@
     }
   },
   "auth": {
-    "providers": []
+    "providers": ["google.com"]
   },
   "firestore": {
     "/students/{studentId}": {

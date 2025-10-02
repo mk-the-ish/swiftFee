@@ -10,6 +10,7 @@ import { firebaseConfig } from './config';
 // Re-export hooks and providers
 export { FirebaseProvider, useFirebase, useAuth, useFirestore, useFirebaseApp } from './provider';
 export { FirebaseClientProvider } from './client-provider';
+export { useUser } from './auth/use-user';
 
 
 let firebaseApp: FirebaseApp;
