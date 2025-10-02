@@ -15,6 +15,110 @@ import { useAppContext } from '@/context/app-context';
 import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { DollarSign, Users, TrendingUp, AlertTriangle } from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import { subDays, format } from 'date-fns';
+
+const chartConfig = {
+  incoming: {
+    label: 'Incoming',
+    color: 'hsl(var(--chart-2))',
+  },
+  outgoing: {
+    label: 'Outgoing',
+    color: 'hsl(var(--chart-1))',
+  },
+} satisfies ChartConfig;
+
+function CashFlowChart() {
+  const { transactions } = useAppContext();
+
+  const chartData = React.useMemo(() => {
+    const today = new Date();
+    const last7Days = Array.from({ length: 7 }, (_, i) => subDays(today, i)).reverse();
+    
+    const dailyData = last7Days.map(day => {
+      const dateString = format(day, 'yyyy-MM-dd');
+      return {
+        date: format(day, 'MMM d'),
+        incoming: 0,
+        outgoing: 0,
+      };
+    });
+
+    transactions.forEach(t => {
+      const transactionDate = new Date(t.date);
+      const dateString = format(transactionDate, 'yyyy-MM-dd');
+      const dayData = dailyData.find(d => format(subDays(new Date(), dailyData.length - 1 - dailyData.findIndex(dd => dd.date === format(transactionDate, 'MMM d'))), 'yyyy-MM-dd') === dateString);
+
+      if (dayData) {
+        if (t.type === 'incoming') {
+          dayData.incoming += t.amount;
+        } else {
+          dayData.outgoing += t.amount;
+        }
+      }
+    });
+
+    return dailyData;
+  }, [transactions]);
+
+
+  return (
+     <Card className="md:col-span-4">
+      <CardHeader>
+        <CardTitle>Cash Flow</CardTitle>
+        <CardDescription>
+          Incoming vs. Outgoing transactions for the last 7 days.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pl-2">
+        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+          <ResponsiveContainer>
+            <BarChart data={chartData} margin={{ top: 20, right: 20, bottom: 5, left: 20 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="date"
+                tickLine={false}
+                tickMargin={10}
+                axisLine={false}
+              />
+              <YAxis
+                tickFormatter={(value) => formatCurrency(Number(value), 'USD').replace('$', '')}
+                tickMargin={10}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    formatter={(value) => formatCurrency(Number(value))}
+                  />
+                }
+              />
+              <Bar dataKey="incoming" fill="var(--color-incoming)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="outgoing" fill="var(--color-outgoing)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 export default function DashboardPage() {
   const { students, exchangeRate, setExchangeRate } = useAppContext();
@@ -100,6 +204,7 @@ export default function DashboardPage() {
           </p>
         </CardContent>
       </Card>
+      <CashFlowChart />
       <Card className="md:col-span-2 lg:col-span-4">
         <CardHeader>
           <CardTitle>Set Daily Exchange Rate</CardTitle>

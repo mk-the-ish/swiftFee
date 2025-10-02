@@ -87,7 +87,7 @@ function RecordExpense() {
       title: 'Expense Recorded',
       description: `${formatCurrency(values.amount)} has been recorded as an expense.`,
     });
-    form.reset({ description: '', amount: 0, bankAccountId: undefined });
+    form.reset({ description: '', amount: undefined, bankAccountId: undefined });
   }
 
   return (
@@ -339,7 +339,7 @@ function TransactionHistory() {
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                                {!groupedTransactions[account.id] && (
+                                {(!groupedTransactions[account.id] || groupedTransactions[account.id].length === 0) && (
                                     <TableRow>
                                         <TableCell colSpan={3} className="text-center h-24">No transactions for this account yet.</TableCell>
                                     </TableRow>
