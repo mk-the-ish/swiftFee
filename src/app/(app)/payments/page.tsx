@@ -142,6 +142,10 @@ export default function PaymentsPage() {
     defaultValues: {
       currency: 'USD',
       receiptNumber: '',
+      studentId: undefined,
+      feeType: undefined,
+      amount: undefined,
+      bankAccountId: undefined,
     },
   });
 
@@ -186,7 +190,14 @@ export default function PaymentsPage() {
       title: 'Payment Recorded',
       description: `${formatCurrency(values.amount, values.currency)} from ${student.name} has been successfully recorded.`,
     });
-    form.reset({currency: 'USD', receiptNumber: ''});
+    form.reset({
+      currency: 'USD',
+      receiptNumber: '',
+      studentId: undefined,
+      feeType: undefined,
+      amount: undefined,
+      bankAccountId: undefined,
+    });
     setSelectedStudent(null);
   }
 
@@ -252,7 +263,7 @@ export default function PaymentsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Fee Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a fee type" />
@@ -276,7 +287,7 @@ export default function PaymentsPage() {
                     <FormItem>
                       <FormLabel>Amount</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="e.g., 250" {...field} />
+                        <Input type="number" placeholder="e.g., 250" {...field} value={field.value ?? ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -318,7 +329,7 @@ export default function PaymentsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Bank Account</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a bank account" />
