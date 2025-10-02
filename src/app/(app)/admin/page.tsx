@@ -228,6 +228,9 @@ function BankAccountManagement() {
         resolver: zodResolver(bankAccountFormSchema),
         defaultValues: {
             currency: 'USD',
+            bankName: '',
+            branch: '',
+            accountNumber: '',
         }
     });
 
@@ -241,7 +244,7 @@ function BankAccountManagement() {
             title: "Bank Account Added",
             description: `${values.bankName} account has been added.`
         });
-        form.reset({currency: 'USD', bankName: '', branch: '', accountNumber: ''});
+        form.reset();
     }
 
     return (

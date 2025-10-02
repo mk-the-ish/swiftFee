@@ -68,6 +68,9 @@ function RecordExpense() {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof expenseFormSchema>>({
     resolver: zodResolver(expenseFormSchema),
+    defaultValues: {
+        description: '',
+    }
   });
 
   function onSubmit(values: z.infer<typeof expenseFormSchema>) {
@@ -84,7 +87,7 @@ function RecordExpense() {
       title: 'Expense Recorded',
       description: `${formatCurrency(values.amount)} has been recorded as an expense.`,
     });
-    form.reset({ description: '', amount: undefined, bankAccountId: undefined });
+    form.reset({ description: '', amount: 0, bankAccountId: undefined });
   }
 
   return (
@@ -129,7 +132,7 @@ function RecordExpense() {
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Office Stationery" {...field} value={field.value ?? ''} />
+                    <Input placeholder="e.g., Office Stationery" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
