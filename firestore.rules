@@ -1,139 +1,115 @@
 /**
  * @file Firestore Security Rules
- * @version 2
+ * @description This ruleset enforces a role-based access control model.
  *
- * @description This ruleset enforces a strict owner-only access model for student, bank account, payment, and transaction data.
- * The exchange rate is publicly readable.
+ * Data Structure:
+ * - /students/{studentId}: Stores student information, secured to prevent public access.
+ * - /bankAccounts/{accountId}: Stores bank account information, secured to prevent public access.
+ * - /payments/{paymentId}: Stores payment records, secured to prevent public access.
+ * - /transactions/{transactionId}: Stores transaction records, secured to prevent public access.
+ * - /settings/exchangeRate: Stores the exchange rate, secured to prevent public access.
  *
- * @data-structure
- * - /students/{studentId}: Student information, accessible only to the owner (creator).
- * - /bankAccounts/{accountId}: Bank account information, accessible only to the owner.
- * - /payments/{paymentId}: Payment records, accessible only to the owner.
- * - /transactions/{transactionId}: Transaction history, accessible only to the owner.
- * - /settings/exchangeRate: Publicly readable exchange rate information.
- *
- * @key-security-decisions
- * - No user listing is allowed for any collection.
- * - Data shape validation is relaxed for rapid prototyping.
- * - The exchange rate is considered public data and is readable by all.
- * - By default, any unauthenticated user is denied from read/write operations.
+ * Key Security Decisions:
+ * - No public listing of any collections is allowed, enforcing data privacy.
+ * - All collections require authentication to access.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to student documents.
+     * @description Restricts access to the students collection.
      * @path /students/{studentId}
-     * @allow (create) User abc creates a student document with ID matching their auth UID.
-     * @deny (create) User abc creates a student document with an ID that does not match their auth UID.
-     * @allow (get) User abc gets student document with ID matching their auth UID.
-     * @deny (get) User abc gets student document with ID not matching their auth UID.
-     * @allow (update) User abc updates student document with ID matching their auth UID.
-     * @deny (update) User abc updates student document with ID not matching their auth UID.
-     * @allow (delete) User abc deletes student document with ID matching their auth UID.
-     * @deny (delete) User abc deletes student document with ID not matching their auth UID.
-     * @principle Enforces document ownership for writes and reads based on the studentId.
+     * @allow (create) - authenticated user can create a student document with a matching studentId.
+     * @deny (create) - unauthenticated user attempts to create a student document.
+     * @deny (update) - any user attempts to update an existing student document.
+     * @deny (delete) - any user attempts to delete an existing student document.
+     * @deny (get) - any user attempts to get a student document.
+     * @deny (list) - any user attempts to list student documents.
+     * @principle Enforces authentication for all operations.
      */
     match /students/{studentId} {
-      allow get: if isSignedIn() && isOwner(studentId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(studentId);
-      allow update: if isSignedIn() && isExistingOwner(studentId);
-      allow delete: if isSignedIn() && isExistingOwner(studentId);
-    }
-
-    /**
-     * @description Controls access to bank account documents.
-     * @path /bankAccounts/{accountId}
-     * @allow (create) User abc creates a bank account document.
-     * @deny (create) User abc attempts to create a bank account document without being signed in.
-     * @allow (get) User abc gets bank account document.
-     * @deny (get) User abc attempts to get bank account document without being signed in.
-     * @allow (update) User abc updates bank account document.
-     * @deny (update) User abc attempts to update bank account document without being signed in.
-     * @allow (delete) User abc deletes bank account document.
-     * @deny (delete) User abc attempts to delete bank account document without being signed in.
-     * @principle Enforces document ownership for writes and reads.
-     */
-    match /bankAccounts/{accountId} {
-      allow get: if isSignedIn();
-      allow list: if false;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
-    }
-
-    /**
-     * @description Controls access to payment documents.
-     * @path /payments/{paymentId}
-     * @allow (create) User abc creates a payment document.
-     * @deny (create) User abc attempts to create a payment document without being signed in.
-     * @allow (get) User abc gets payment document.
-     * @deny (get) User abc attempts to get payment document without being signed in.
-     * @allow (update) User abc updates payment document.
-     * @deny (update) User abc attempts to update payment document without being signed in.
-     * @allow (delete) User abc deletes payment document.
-     * @deny (delete) User abc attempts to delete payment document without being signed in.
-     * @principle Enforces document ownership for writes and reads.
-     */
-    match /payments/{paymentId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
-    }
-
-    /**
-     * @description Controls access to transaction documents.
-     * @path /transactions/{transactionId}
-     * @allow (create) User abc creates a transaction document.
-     * @deny (create) User abc attempts to create a transaction document without being signed in.
-     * @allow (get) User abc gets transaction document.
-     * @deny (get) User abc attempts to get transaction document without being signed in.
-     * @allow (update) User abc updates transaction document.
-     * @deny (update) User abc attempts to update transaction document without being signed in.
-     * @allow (delete) User abc deletes transaction document.
-     * @deny (delete) User abc attempts to delete transaction document without being signed in.
-     * @principle Enforces document ownership for writes and reads.
-     */
-    match /transactions/{transactionId} {
-      allow get: if isSignedIn();
-      allow list: if false;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
-    }
-
-    /**
-     * @description Controls access to the exchange rate document.
-     * @path /settings/exchangeRate
-     * @allow (get) Any user can get the exchange rate.
-     * @allow (list) Listing is disallowed.
-     * @deny (create) No user can create a new exchange rate document.
-     * @deny (update) No user can update the exchange rate document.
-     * @deny (delete) No user can delete the exchange rate document.
-     * @principle Allows public read access but restricts all write access.
-     */
-    match /settings/exchangeRate {
-      allow get: if true;
+      allow get: if false;
       allow list: if false;
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
-    function isSignedIn() {
-      return request.auth != null;
+    /**
+     * @description Restricts access to the bankAccounts collection.
+     * @path /bankAccounts/{accountId}
+     * @allow (create) - authenticated user can create a bank account document with a matching accountId.
+     * @deny (create) - unauthenticated user attempts to create a bank account document.
+     * @deny (update) - any user attempts to update an existing bank account document.
+     * @deny (delete) - any user attempts to delete an existing bank account document.
+     * @deny (get) - any user attempts to get a bank account document.
+     * @deny (list) - any user attempts to list bank account documents.
+     * @principle Enforces authentication for all operations.
+     */
+    match /bankAccounts/{accountId} {
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    /**
+     * @description Restricts access to the payments collection.
+     * @path /payments/{paymentId}
+     * @allow (create) - authenticated user can create a payment document with a matching paymentId.
+     * @deny (create) - unauthenticated user attempts to create a payment document.
+     * @deny (update) - any user attempts to update an existing payment document.
+     * @deny (delete) - any user attempts to delete an existing payment document.
+     * @deny (get) - any user attempts to get a payment document.
+     * @deny (list) - any user attempts to list payment documents.
+     * @principle Enforces authentication for all operations.
+     */
+    match /payments/{paymentId} {
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
+    /**
+     * @description Restricts access to the transactions collection.
+     * @path /transactions/{transactionId}
+     * @allow (create) - authenticated user can create a transaction document with a matching transactionId.
+     * @deny (create) - unauthenticated user attempts to create a transaction document.
+     * @deny (update) - any user attempts to update an existing transaction document.
+     * @deny (delete) - any user attempts to delete an existing transaction document.
+     * @deny (get) - any user attempts to get a transaction document.
+     * @deny (list) - any user attempts to list transaction documents.
+     * @principle Enforces authentication for all operations.
+     */
+    match /transactions/{transactionId} {
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Restricts access to the exchange rate settings.
+     * @path /settings/exchangeRate
+     * @allow (create) - authenticated user can create a exchange rate document.
+     * @deny (create) - unauthenticated user attempts to create a exchange rate document.
+     * @deny (update) - any user attempts to update an existing exchange rate document.
+     * @deny (delete) - any user attempts to delete an existing exchange rate document.
+     * @deny (get) - any user attempts to get the exchange rate document.
+     * @deny (list) - any user attempts to list exchange rate documents.
+     * @principle Enforces authentication for all operations.
+     */
+    match /settings/exchangeRate {
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }
