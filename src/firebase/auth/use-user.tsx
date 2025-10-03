@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import {
   onAuthStateChanged,
-  signInWithPopup,
-  GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   type User,
 } from 'firebase/auth';
@@ -31,11 +31,15 @@ export function useUser() {
     return () => unsubscribe();
   }, [auth]);
 
-  const signInWithGoogle = async () => {
+  const signInWithEmail = async (email: string, password: string) => {
     if (!auth) throw new Error("Auth service not available");
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    return signInWithEmailAndPassword(auth, email, password);
   };
+
+  const createUserWithEmail = async (email: string, password: string) => {
+    if (!auth) throw new Error("Auth service not available");
+    return createUserWithEmailAndPassword(auth, email, password);
+  }
 
   const signOut = async () => {
     if (!auth) throw new Error("Auth service not available");
@@ -43,5 +47,5 @@ export function useUser() {
     router.push('/login');
   };
 
-  return { user, loading, signInWithGoogle, signOut };
+  return { user, loading, signInWithEmail, createUserWithEmail, signOut };
 }

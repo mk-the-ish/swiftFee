@@ -168,15 +168,15 @@ function AppLayoutContent({
                 <Avatar>
                   <AvatarImage
                     src={user.photoURL || "https://picsum.photos/seed/1/100/100"}
-                    alt={user.displayName || "User"}
+                    alt={user.email || "User"}
                     data-ai-hint="person face"
                   />
-                  <AvatarFallback>{user.displayName?.[0] || 'U'}</AvatarFallback>
+                  <AvatarFallback>{user.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{user.displayName}</DropdownMenuLabel>
+              <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuItem>Support</DropdownMenuItem>
