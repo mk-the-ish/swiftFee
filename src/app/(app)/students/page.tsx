@@ -74,6 +74,12 @@ function AddStudentForm({ setOpen }: { setOpen: (open: boolean) => void }) {
   const { toast } = useToast();
   const form = useForm<z.infer<typeof studentFormSchema>>({
     resolver: zodResolver(studentFormSchema),
+    defaultValues: {
+      name: '',
+      guardianName: '',
+      guardianPhone: '',
+      address: '',
+    }
   });
 
   async function onSubmit(values: z.infer<typeof studentFormSchema>) {
