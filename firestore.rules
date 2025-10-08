@@ -1,112 +1,100 @@
 /**
  * @file Firestore Security Rules
- * @description This ruleset enforces a strict access control model for a school management application.
+ * @description This ruleset defines access control for the school management application.
  *
  * Core Philosophy:
- * Only authenticated users can access the database. There is no user-specific data or roles, so authentication is the only factor.
+ *  - Strict access control based on user authentication and role-based authorization.
+ *  - Public read access to certain settings.
+ *  - Owner-only write access for all data.
  *
  * Data Structure:
- * The database consists of several top-level collections: `students`, `bankAccounts`, `payments`, and `transactions`, `settings`.
- * - `/students/{studentId}`: Stores student information.
- * - `/bankAccounts/{accountId}`: Stores bank account details.
- * - `/payments/{paymentId}`: Stores payment records.
- * - `/transactions/{transactionId}`: Stores transaction history.
- * - `/settings/exchangeRate`: Stores exchange rate.
+ *  - /students/{studentId}: Student records.
+ *  - /bankAccounts/{accountId}: School bank account information.
+ *  - /payments/{paymentId}: Payment records.
+ *  - /transactions/{transactionId}: Bank transaction records.
+ *  - /settings/exchangeRate: Exchange rate settings.
  *
  * Key Security Decisions:
- * - Payments are currently readable by anyone.
+ *  - Users must be authenticated to perform any write operation.
+ *  - Listing of students, bank accounts, payments, and transactions is denied to client.
+ *  - Exchange rate is publicly readable.
+ *
+ * Denormalization for Authorization:
+ *  - None (all authorization is based on authenticated user and/or public read access).
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants read and write access to authenticated users for student documents.
-     * @path /students/{studentId}
-     * @allow (get, list) Authenticated user can read a student document.
-     * @allow (create, update, delete) Authenticated user can create, update, or delete a student document.
-     * @deny (get, list) Unauthenticated user cannot read a student document.
-     * @deny (create, update, delete) Unauthenticated user cannot create, update, or delete a student document.
-     * @principle Authenticated user can access all student data.
-     */
-    match /students/{studentId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
-    }
-
-    /**
-     * @description Grants read and write access to authenticated users for bank account documents.
-     * @path /bankAccounts/{accountId}
-     * @allow (get, list) Authenticated user can read a bank account document.
-     * @allow (create, update, delete) Authenticated user can create, update, or delete a bank account document.
-     * @deny (get, list) Unauthenticated user cannot read a bank account document.
-     * @deny (create, update, delete) Unauthenticated user cannot create, update, or delete a bank account document.
-     * @principle Authenticated user can access all bank account data.
-     */
-    match /bankAccounts/{accountId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
-    }
-
-    /**
-     * @description Grants read access to authenticated users for payment documents, write access is allowed for any authenticated user.
-     * @path /payments/{paymentId}
-     * @allow (get, list) Any user can read a payment document.
-     * @allow (create, update, delete) Authenticated user can create, update, or delete a payment document.
-     * @deny (create, update, delete) Unauthenticated user cannot create, update, or delete a payment document.
-     * @principle Authenticated user can access all payment data.
-     */
-    match /payments/{paymentId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
-    }
-
-    /**
-     * @description Grants read and write access to authenticated users for transaction documents.
-     * @path /transactions/{transactionId}
-     * @allow (get, list) Authenticated user can read a transaction document.
-     * @allow (create, update, delete) Authenticated user can create, update, or delete a transaction document.
-     * @deny (get, list) Unauthenticated user cannot read a transaction document.
-     * @deny (create, update, delete) Unauthenticated user cannot create, update, or delete a transaction document.
-     * @principle Authenticated user can access all transaction data.
-     */
-    match /transactions/{transactionId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
-    }
-
-    /**
-     * @description Grants read and write access to authenticated users for exchange rate settings.
+     * @description Grants read access to the exchange rate and denies all write operations.
      * @path /settings/exchangeRate
-     * @allow (get, list) Authenticated user can read the exchange rate settings.
-     * @allow (create, update, delete) Authenticated user can create, update, or delete the exchange rate settings.
-     * @deny (get, list) Unauthenticated user cannot read the exchange rate settings.
-     * @deny (create, update, delete) Unauthenticated user cannot create, update, or delete the exchange rate settings.
-     * @principle Authenticated user can access the exchange rate settings.
+     * @allow (get, list): if true
+     * @deny (create, update, delete): Always
+     * @principle Allows public read access to the exchange rate.
      */
     match /settings/exchangeRate {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
-  }
 
-  // Helper function to determine if a user is signed in
-  function isSignedIn() {
-    return request.auth != null;
+    /**
+     * @description Secure student records.
+     * @path /students/{studentId}
+     * @deny (get, list, create, update, delete): Always
+     * @principle No access is allowed to this data via security rules, it is likely controlled by Cloud Functions.
+     */
+    match /students/{studentId} {
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Secure bank account records.
+     * @path /bankAccounts/{accountId}
+     * @deny (get, list, create, update, delete): Always
+     * @principle No access is allowed to this data via security rules, it is likely controlled by Cloud Functions.
+     */
+    match /bankAccounts/{accountId} {
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Secure payment records.
+     * @path /payments/{paymentId}
+     * @deny (get, list, create, update, delete): Always
+     * @principle No access is allowed to this data via security rules, it is likely controlled by Cloud Functions.
+     */
+    match /payments/{paymentId} {
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Secure transaction records.
+     * @path /transactions/{transactionId}
+     * @deny (get, list, create, update, delete): Always
+     * @principle No access is allowed to this data via security rules, it is likely controlled by Cloud Functions.
+     */
+    match /transactions/{transactionId} {
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
   }
 }
