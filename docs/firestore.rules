@@ -1,0 +1,110 @@
+/**
+ * @file Firebase Security Rules for Firestore.
+ *
+ * @core_philosophy This ruleset focuses on securing access to school data,
+ * with an emphasis on preventing unauthorized listing of sensitive collections.
+ * It prioritizes a secure-by-default posture, restricting access unless
+ * explicitly granted. The primary use case is a school management system
+ * where only authorized personnel should access financial and student data.
+ *
+ * @data_structure
+ * - /students/{studentId}: Stores individual student records.
+ * - /bankAccounts/{accountId}: Stores bank account information for the school.
+ *   Access to this collection is strictly limited.
+ * - /payments/{paymentId}: Stores payment records made by students.
+ * - /transactions/{transactionId}: Stores bank transaction data.
+ * - /settings/exchangeRate: Stores the current exchange rate. This is public.
+ *
+ * @key_security_decisions
+ * - Bank accounts and transactions are considered highly sensitive. Listing
+ *   these collections is explicitly denied to prevent unauthorized data
+ *   exposure. Only specific read or write access is granted.
+ * - Student data and payments are accessible, but the rules can be extended to
+ *   limit access based on roles or ownership.
+ * - The exchange rate is publicly readable.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Secures access to student documents.
+     * @path /students/{studentId}
+     * @allow (get, create, update, delete) if isSignedIn()
+     * @deny (get) if !isSignedIn()
+     * @principle Requires the user to be signed in for any student data operation.
+     */
+    match /students/{studentId} {
+      allow get: if isSignedIn();
+      allow list: if false; // Listing students collection is too open, and exposing PII
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Secures access to bank account information.
+     * @path /bankAccounts/{accountId}
+     * @allow (get) if isSignedIn()
+     * @deny (list, create, update, delete)
+     * @principle Denies listing, creation, updates, and deletion for bank accounts.
+     */
+    match /bankAccounts/{accountId} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Secures access to payment records.
+     * @path /payments/{paymentId}
+     * @allow (get, create, update, delete) if isSignedIn()
+     * @deny (get) if !isSignedIn()
+     * @principle Requires the user to be signed in for any payment data operation.
+     */
+    match /payments/{paymentId} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
+    }
+
+    /**
+     * @description Secures access to bank transaction data.
+     * @path /transactions/{transactionId}
+     * @allow (get) if isSignedIn()
+     * @deny (list, create, update, delete)
+     * @principle Denies listing, creation, updates, and deletion for transactions.
+     */
+    match /transactions/{transactionId} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Allows public read access to the exchange rate.
+     * @path /settings/exchangeRate
+     * @allow (get, list) if true
+     * @deny (create, update, delete)
+     * @principle Allows anyone to read the exchange rate, but restricts writing.
+     */
+    match /settings/exchangeRate {
+      allow get: if true;
+      allow list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+
+  // Helper function to check if the user is signed in.
+  function isSignedIn() {
+    return request.auth != null;
+  }
+}
