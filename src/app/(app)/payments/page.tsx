@@ -190,18 +190,24 @@ export default function PaymentsPage() {
       ...(values.paymentMethod === 'Cash' && { depositAccountId: values.depositAccountId }),
     };
 
-    await addPayment(newPayment);
+    const paymentRef = await addPayment(newPayment);
     
     // If not cash, create transaction immediately
     if(values.paymentMethod !== 'Cash' && values.bankAccountId) {
-        const newTransaction: Omit<Transaction, 'id'> = {
-            date: new Date().toISOString(),
-            bankAccountId: values.bankAccountId,
-            type: 'incoming',
-            description: `Fee payment from ${student.name} (Receipt: ${values.receiptNumber})`,
-            amount: amountInUSD,
-        };
-        await addTransaction(newTransaction);
+        const bankAccount = bankAccounts.find(ba => ba.id === values.bankAccountId);
+        if (bankAccount) {
+            const newTransaction: Omit<Transaction, 'id'> = {
+                date: new Date().toISOString(),
+                bankAccountId: values.bankAccountId,
+                type: 'incoming',
+                description: `Fee payment from ${student.name} (Receipt: ${values.receiptNumber})`,
+                amount: amountInUSD,
+                currency: values.currency,
+                originalAmount: values.amount,
+                relatedPaymentId: paymentRef?.id
+            };
+            await addTransaction(newTransaction);
+        }
     }
 
     // Update student's owing balance
@@ -384,7 +390,7 @@ export default function PaymentsPage() {
                                 </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                {bankAccounts.filter(b => b.currency === 'USD').map((b) => (
+                                {bankAccounts.map((b) => (
                                 <SelectItem key={b.id} value={b.id}>
                                     {b.bankName} - {b.accountNumber} ({b.currency})
                                 </SelectItem>

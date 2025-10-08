@@ -53,7 +53,9 @@ export type Transaction = {
   bankAccountId: string;
   type: 'incoming' | 'outgoing';
   description: string;
-  amount: number; // Always in USD for consistency
+  amount: number; // in USD
+  currency: 'USD' | 'ZWG';
+  originalAmount: number;
   relatedPaymentId?: string;
 };
 

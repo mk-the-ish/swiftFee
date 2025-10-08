@@ -80,17 +80,22 @@ function RecordExpense() {
   });
 
   async function onSubmit(values: z.infer<typeof expenseFormSchema>) {
+    const bankAccount = bankAccounts.find(ba => ba.id === values.bankAccountId);
+    if (!bankAccount) return;
+
     const newTransaction: Omit<Transaction, 'id'> = {
       date: new Date().toISOString(),
       bankAccountId: values.bankAccountId,
       type: 'outgoing',
       description: values.description,
       amount: values.amount,
+      currency: bankAccount.currency,
+      originalAmount: values.amount,
     };
     await addTransaction(newTransaction);
     toast({
       title: 'Expense Recorded',
-      description: `${formatCurrency(values.amount)} has been recorded as an expense.`,
+      description: `${formatCurrency(values.amount, bankAccount.currency)} has been recorded as an expense.`,
     });
     form.reset({ description: '', amount: undefined, bankAccountId: undefined });
   }
@@ -148,7 +153,7 @@ function RecordExpense() {
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Amount (USD)</FormLabel>
+                  <FormLabel>Amount</FormLabel>
                   <FormControl>
                     <Input type="number" placeholder="e.g., 75.50" {...field} value={field.value ?? ''} />
                   </FormControl>
@@ -181,21 +186,22 @@ function DailyDeposits() {
                 const account = bankAccounts.find(b => b.id === accountId);
                 acc[accountId] = {
                     accountName: account ? `${account.bankName} (${account.accountNumber})` : 'Unknown Account',
+                    currency: account?.currency || 'USD',
                     total: 0,
                     payments: [],
                 };
             }
-            acc[accountId].total += p.amountInUSD;
+            acc[accountId].total += p.amount;
             acc[accountId].payments.push(p);
             return acc;
-        }, {} as Record<string, { accountName: string; total: number; payments: typeof payments }>);
+        }, {} as Record<string, { accountName: string; currency: 'USD' | 'ZWG'; total: number; payments: typeof payments }>);
         
         return Object.entries(grouped);
 
     }, [payments, bankAccounts]);
 
 
-    const handleDeposit = async (accountId: string, total: number, paymentIds: string[]) => {
+    const handleDeposit = async (accountId: string, total: number, currency: 'USD' | 'ZWG', paymentIds: string[]) => {
         if (paymentIds.length === 0) {
             toast({ variant: 'destructive', title: 'Error', description: 'No cash payments to deposit for this account.' });
             return;
@@ -206,7 +212,9 @@ function DailyDeposits() {
             bankAccountId: accountId,
             type: 'incoming',
             description: `Daily cash deposit from fees`,
-            amount: total,
+            amount: total, // Assuming cash deposits are already in the correct currency of the account
+            currency: currency,
+            originalAmount: total,
         };
         await addTransaction(newTransaction);
 
@@ -214,7 +222,7 @@ function DailyDeposits() {
 
         toast({
             title: 'Cash Deposited',
-            description: `${formatCurrency(total)} has been deposited successfully.`,
+            description: `${formatCurrency(total, currency)} has been deposited successfully.`,
         });
     };
 
@@ -234,7 +242,7 @@ function DailyDeposits() {
                                 <AccordionTrigger>
                                     <div className="flex justify-between w-full pr-4">
                                         <span className="font-semibold">{data.accountName}</span>
-                                        <span className="font-bold text-lg">{formatCurrency(data.total)}</span>
+                                        <span className="font-bold text-lg">{formatCurrency(data.total, data.currency)}</span>
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent>
@@ -244,7 +252,7 @@ function DailyDeposits() {
                                                 <TableRow>
                                                     <TableHead>Student</TableHead>
                                                     <TableHead>Receipt #</TableHead>
-                                                    <TableHead className="text-right">Amount (USD)</TableHead>
+                                                    <TableHead className="text-right">Amount</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
@@ -252,7 +260,7 @@ function DailyDeposits() {
                                                 <TableRow key={p.id}>
                                                     <TableCell>{p.studentName}</TableCell>
                                                     <TableCell><Badge variant="secondary">{p.receiptNumber}</Badge></TableCell>
-                                                    <TableCell className="text-right">{formatCurrency(p.amountInUSD)}</TableCell>
+                                                    <TableCell className="text-right">{formatCurrency(p.amount, p.currency)}</TableCell>
                                                 </TableRow>
                                                 ))}
                                             </TableBody>
@@ -260,18 +268,18 @@ function DailyDeposits() {
                                          <div className="mt-4 flex justify-end">
                                              <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <Button>Deposit {formatCurrency(data.total)}</Button>
+                                                    <Button>Deposit {formatCurrency(data.total, data.currency)}</Button>
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>Confirm Deposit</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            Are you sure you want to deposit {formatCurrency(data.total)} into {data.accountName}? This action cannot be undone.
+                                                            Are you sure you want to deposit {formatCurrency(data.total, data.currency)} into {data.accountName}? This action cannot be undone.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeposit(accountId, data.total, data.payments.map(p => p.id))}>
+                                                    <AlertDialogAction onClick={() => handleDeposit(accountId, data.total, data.currency, data.payments.map(p => p.id))}>
                                                         Confirm Deposit
                                                     </AlertDialogAction>
                                                     </AlertDialogFooter>
@@ -301,7 +309,7 @@ function TransactionHistory() {
     const getAccountBalance = (accountId: string) => {
         const accountTransactions = groupedTransactions[accountId] || [];
         return accountTransactions.reduce((balance, t) => {
-            return t.type === 'incoming' ? balance + t.amount : balance - t.amount;
+            return t.type === 'incoming' ? balance + t.originalAmount : balance - t.originalAmount;
         }, 0);
     }
 
@@ -341,7 +349,7 @@ function TransactionHistory() {
                                             </div>
                                         </TableCell>
                                         <TableCell className={`text-right font-medium ${t.type === 'incoming' ? 'text-green-600' : 'text-red-600'}`}>
-                                            {t.type === 'incoming' ? '+' : '-'} {formatCurrency(t.amount, account.currency)}
+                                            {t.type === 'incoming' ? '+' : '-'} {formatCurrency(t.originalAmount, t.currency)}
                                         </TableCell>
                                     </TableRow>
                                 ))}

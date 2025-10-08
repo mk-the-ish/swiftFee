@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import type { Student, Payment, BankAccount, Transaction, ExchangeRate } from '@/lib/types';
 import { useCollection, useDoc } from '@/firebase/firestore/hooks';
-import { collection, doc, setDoc, addDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -18,7 +18,7 @@ interface AppContextType {
   bulkBillStudents: (values: { tuition: number; levy: number; buildingFund: number; }) => Promise<void>;
 
   payments: Payment[];
-  addPayment: (payment: Omit<Payment, 'id'>) => Promise<void>;
+  addPayment: (payment: Omit<Payment, 'id'>) => Promise<DocumentReference | undefined>;
 
   bankAccounts: BankAccount[];
   addBankAccount: (account: Omit<BankAccount, 'id'>) => Promise<void>;
@@ -40,7 +40,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
 
   const { data: students = [], add: addStudentToCollection, update: updateStudentInCollection } = useCollection<Student>(firestore ? collection(firestore, 'students') : null);
-  const { data: payments = [], add: addPayment } = useCollection<Payment>(firestore ? collection(firestore, 'payments') : null);
+  const { data: payments = [], add: addPaymentToCollection } = useCollection<Payment>(firestore ? collection(firestore, 'payments') : null);
   const { data: bankAccounts = [], add: addBankAccountToCollection } = useCollection<BankAccount>(firestore ? collection(firestore, 'bankAccounts') : null);
   const { data: transactions = [], add: addTransactionToCollection } = useCollection<Transaction>(firestore ? collection(firestore, 'transactions') : null);
   const { data: exchangeRate } = useDoc<ExchangeRate>(firestore ? doc(firestore, 'settings', 'exchangeRate') : null);
@@ -166,10 +166,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
   };
   
-  const addPaymentWithTransaction = async (payment: Omit<Payment, 'id'>) => {
-    if(!firestore) return;
-    await addPayment(payment);
-  }
+  const addPayment = async (payment: Omit<Payment, 'id'>): Promise<DocumentReference | undefined> => { 
+      if (firestore) {
+           const ref = collection(firestore, 'payments');
+           try {
+              const docRef = await addDoc(ref, payment);
+              return docRef;
+           } catch(err: any) {
+              errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'create', requestResourceData: payment }));
+              return undefined;
+          }
+      }
+      return undefined;
+  };
 
   const contextValue = useMemo(() => ({
     students,
@@ -179,14 +188,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     bulkUpgradeGrades,
     bulkBillStudents,
     payments,
-    addPayment: async (payment) => { 
-        if (firestore) {
-             const ref = collection(firestore, 'payments');
-             addDoc(ref, payment).catch(err => {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'create', requestResourceData: payment }));
-            })
-        }
-    },
+    addPayment,
     bankAccounts,
     addBankAccount,
     transactions,

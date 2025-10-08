@@ -42,7 +42,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-function CashFlowChart() {
+function CashFlowChart({ currency }: { currency: 'USD' | 'ZWG' }) {
   const { transactions } = useAppContext();
 
   const chartData = React.useMemo(() => {
@@ -57,28 +57,28 @@ function CashFlowChart() {
       };
     });
 
-    transactions.forEach(t => {
+    transactions.filter(t => t.currency === currency).forEach(t => {
       const transactionDate = new Date(t.date);
       const dateString = format(transactionDate, 'yyyy-MM-dd');
       const dayData = dailyData.find(d => format(subDays(new Date(), dailyData.length - 1 - dailyData.findIndex(dd => dd.date === format(transactionDate, 'MMM d'))), 'yyyy-MM-dd') === dateString);
 
       if (dayData) {
         if (t.type === 'incoming') {
-          dayData.incoming += t.amount;
+          dayData.incoming += t.originalAmount;
         } else {
-          dayData.outgoing += t.amount;
+          dayData.outgoing += t.originalAmount;
         }
       }
     });
 
     return dailyData;
-  }, [transactions]);
+  }, [transactions, currency]);
 
 
   return (
-     <Card className="md:col-span-4">
+     <Card>
       <CardHeader>
-        <CardTitle>Cash Flow</CardTitle>
+        <CardTitle>Cash Flow ({currency})</CardTitle>
         <CardDescription>
           Incoming vs. Outgoing transactions for the last 7 days.
         </CardDescription>
@@ -95,7 +95,7 @@ function CashFlowChart() {
                 axisLine={false}
               />
               <YAxis
-                tickFormatter={(value) => formatCurrency(Number(value), 'USD').replace('$', '')}
+                tickFormatter={(value) => formatCurrency(Number(value), currency).replace(currency === 'USD' ? '$' : 'ZWG', '')}
                 tickMargin={10}
                 axisLine={false}
                 tickLine={false}
@@ -104,7 +104,7 @@ function CashFlowChart() {
                 cursor={false}
                 content={
                   <ChartTooltipContent
-                    formatter={(value) => formatCurrency(Number(value))}
+                    formatter={(value) => formatCurrency(Number(value), currency)}
                   />
                 }
               />
@@ -225,8 +225,11 @@ export default function DashboardPage() {
           </p>
         </CardContent>
       </Card>
-      <div className="lg:col-span-3">
-        <CashFlowChart />
+      <div className="lg:col-span-2">
+        <CashFlowChart currency="USD" />
+      </div>
+      <div className="lg:col-span-2">
+        <CashFlowChart currency="ZWG" />
       </div>
       <Card className="md:col-span-2 lg:col-span-4">
         <CardHeader>
