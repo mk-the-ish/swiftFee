@@ -63,10 +63,16 @@ const paymentFormSchema = z.object({
   }),
   amount: z.coerce.number().positive({ message: 'Amount must be positive.' }),
   currency: z.enum(['USD', 'ZWG']),
-  bankAccountId: z.string().optional(),
-}).refine(data => data.paymentMethod === 'Cash' || !!data.bankAccountId, {
-    message: "Bank account is required for this payment method.",
-    path: ["bankAccountId"],
+  bankAccountId: z.string().optional(), // For direct bank payments
+  depositAccountId: z.string().optional(), // For cash deposits
+}).refine(data => {
+    if (data.paymentMethod === 'Cash') {
+        return !!data.depositAccountId;
+    }
+    return !!data.bankAccountId;
+}, {
+    message: "A bank account must be selected.",
+    path: ["bankAccountId"], // This error can be shown on both, but bankAccountId is fine
 });
 
 
@@ -166,7 +172,7 @@ export default function PaymentsPage() {
     const amountInUSD = values.currency === 'ZWG' ? values.amount / rate : values.amount;
 
     // Create new payment record
-    const newPayment: Omit<Payment, 'id' | 'bankAccountId'> & { bankAccountId?: string } = {
+    const newPayment: Omit<Payment, 'id'> = {
       studentId: student.id,
       studentName: student.name,
       feeType: values.feeType,
@@ -177,13 +183,11 @@ export default function PaymentsPage() {
       date: new Date().toISOString(),
       receiptNumber: values.receiptNumber,
       deposited: values.paymentMethod !== 'Cash', // Cash payments are deposited later
+      bankAccountId: values.paymentMethod !== 'Cash' ? values.bankAccountId : undefined,
+      depositAccountId: values.paymentMethod === 'Cash' ? values.depositAccountId : undefined,
     };
 
-    if (values.bankAccountId) {
-      newPayment.bankAccountId = values.bankAccountId;
-    }
-
-    await addPayment(newPayment as Omit<Payment, 'id'>);
+    await addPayment(newPayment);
     
     // If not cash, create transaction immediately
     if(values.paymentMethod !== 'Cash' && values.bankAccountId) {
@@ -193,7 +197,6 @@ export default function PaymentsPage() {
             type: 'incoming',
             description: `Fee payment from ${student.name} (Receipt: ${values.receiptNumber})`,
             amount: amountInUSD,
-            // We don't have the paymentId yet, this could be improved with a cloud function
         };
         await addTransaction(newTransaction);
     }
@@ -214,6 +217,7 @@ export default function PaymentsPage() {
       feeType: undefined,
       amount: undefined,
       bankAccountId: undefined,
+      depositAccountId: undefined,
       paymentMethod: undefined,
     });
     setSelectedStudent(null);
@@ -363,13 +367,40 @@ export default function PaymentsPage() {
                     </FormItem>
                   )}
                 />
-                {paymentMethod !== 'Cash' && (
+                {paymentMethod === 'Cash' && (
+                    <FormField
+                        control={form.control}
+                        name="depositAccountId"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Deposit to Account</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                                <SelectTrigger>
+                                <SelectValue placeholder="Select account for end-of-day deposit" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {bankAccounts.filter(b => b.currency === 'USD').map((b) => (
+                                <SelectItem key={b.id} value={b.id}>
+                                    {b.bankName} - {b.accountNumber} ({b.currency})
+                                </SelectItem>
+                                ))}
+                            </SelectContent>
+                            </Select>
+                            <FormDescription>This is the account the cash will be deposited into.</FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                )}
+                {paymentMethod && paymentMethod !== 'Cash' && (
                   <FormField
                     control={form.control}
                     name="bankAccountId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Bank Account</FormLabel>
+                        <FormLabel>Paid into Bank Account</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>

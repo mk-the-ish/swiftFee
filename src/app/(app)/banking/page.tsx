@@ -20,7 +20,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -43,7 +42,7 @@ import {
 import { useAppContext } from '@/context/app-context';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, groupTransactionsByAccount } from '@/lib/utils';
-import type { Transaction, BankAccount } from '@/lib/types';
+import type { Transaction } from '@/lib/types';
 import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import {
   AlertDialog,
@@ -56,6 +55,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+
 
 const expenseFormSchema = z.object({
   bankAccountId: z.string({ required_error: 'Please select a bank account.' }),
@@ -161,125 +167,130 @@ function RecordExpense() {
 }
 
 function DailyDeposits() {
-  const { payments, markPaymentsAsDeposited, bankAccounts, addTransaction } = useAppContext();
-  const { toast } = useToast();
-  const [selectedAccountId, setSelectedAccountId] = React.useState<string | null>(null);
+    const { payments, markPaymentsAsDeposited, bankAccounts, addTransaction } = useAppContext();
+    const { toast } = useToast();
 
-  const cashPaymentsToDeposit = payments.filter(
-    (p) => p.paymentMethod === 'Cash' && !p.deposited
-  );
+    const cashByAccount = React.useMemo(() => {
+        const cashPaymentsToDeposit = payments.filter(
+            (p) => p.paymentMethod === 'Cash' && !p.deposited && p.depositAccountId
+        );
 
-  const totalCashToDeposit = cashPaymentsToDeposit.reduce(
-    (acc, p) => acc + p.amountInUSD,
-    0
-  );
+        const grouped = cashPaymentsToDeposit.reduce((acc, p) => {
+            const accountId = p.depositAccountId!;
+            if (!acc[accountId]) {
+                const account = bankAccounts.find(b => b.id === accountId);
+                acc[accountId] = {
+                    accountName: account ? `${account.bankName} (${account.accountNumber})` : 'Unknown Account',
+                    total: 0,
+                    payments: [],
+                };
+            }
+            acc[accountId].total += p.amountInUSD;
+            acc[accountId].payments.push(p);
+            return acc;
+        }, {} as Record<string, { accountName: string; total: number; payments: typeof payments }>);
+        
+        return Object.entries(grouped);
 
-  const handleDeposit = async () => {
-    if (!selectedAccountId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Please select a bank account to deposit into.' });
-      return;
-    }
-    if (cashPaymentsToDeposit.length === 0) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No cash payments to deposit.' });
-      return;
-    }
+    }, [payments, bankAccounts]);
 
-    const newTransaction: Omit<Transaction, 'id'> = {
-      date: new Date().toISOString(),
-      bankAccountId: selectedAccountId,
-      type: 'incoming',
-      description: `Daily cash deposit from fees`,
-      amount: totalCashToDeposit,
+
+    const handleDeposit = async (accountId: string, total: number, paymentIds: string[]) => {
+        if (paymentIds.length === 0) {
+            toast({ variant: 'destructive', title: 'Error', description: 'No cash payments to deposit for this account.' });
+            return;
+        }
+
+        const newTransaction: Omit<Transaction, 'id'> = {
+            date: new Date().toISOString(),
+            bankAccountId: accountId,
+            type: 'incoming',
+            description: `Daily cash deposit from fees`,
+            amount: total,
+        };
+        await addTransaction(newTransaction);
+
+        await markPaymentsAsDeposited(paymentIds);
+
+        toast({
+            title: 'Cash Deposited',
+            description: `${formatCurrency(total)} has been deposited successfully.`,
+        });
     };
-    await addTransaction(newTransaction);
 
-    // Mark payments as deposited
-    const paymentIdsToMark = cashPaymentsToDeposit.map(p => p.id);
-    await markPaymentsAsDeposited(paymentIdsToMark);
-
-    toast({
-      title: 'Cash Deposited',
-      description: `${formatCurrency(totalCashToDeposit)} has been deposited successfully.`,
-    });
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Daily Cash Deposits</CardTitle>
-        <CardDescription>
-          Summary of cash payments received today. Deposit the total amount into a bank account.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="mb-6 space-y-4 rounded-lg border bg-muted/50 p-4">
-            <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Total Cash to Deposit</span>
-                <span className="text-2xl font-bold">{formatCurrency(totalCashToDeposit)}</span>
-            </div>
-            <div className="flex items-end gap-4">
-                <div className="flex-1">
-                <Label htmlFor="deposit-account">Deposit to Account</Label>
-                <Select onValueChange={setSelectedAccountId}>
-                    <SelectTrigger id="deposit-account">
-                    <SelectValue placeholder="Select bank account" />
-                    </SelectTrigger>
-                    <SelectContent>
-                    {bankAccounts.filter(b => b.currency === 'USD').map(b => (
-                        <SelectItem key={b.id} value={b.id}>
-                        {b.bankName} ({b.accountNumber})
-                        </SelectItem>
-                    ))}
-                    </SelectContent>
-                </Select>
-                </div>
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button disabled={totalCashToDeposit === 0 || !selectedAccountId}>Deposit Cash</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Confirm Deposit</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Are you sure you want to deposit {formatCurrency(totalCashToDeposit)} into the selected bank account? This action cannot be undone.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeposit}>Confirm Deposit</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </div>
-        </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Student</TableHead>
-              <TableHead>Receipt #</TableHead>
-              <TableHead className="text-right">Amount (USD)</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {cashPaymentsToDeposit.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell>{p.studentName}</TableCell>
-                <TableCell><Badge variant="secondary">{p.receiptNumber}</Badge></TableCell>
-                <TableCell className="text-right">{formatCurrency(p.amountInUSD)}</TableCell>
-              </TableRow>
-            ))}
-            {cashPaymentsToDeposit.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center">
-                  No undeposited cash payments.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Daily Cash Deposits</CardTitle>
+                <CardDescription>
+                    Summary of undeposited cash payments, grouped by their destination bank account.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {cashByAccount.length > 0 ? (
+                    <Accordion type="single" collapsible className="w-full">
+                        {cashByAccount.map(([accountId, data]) => (
+                            <AccordionItem value={accountId} key={accountId}>
+                                <AccordionTrigger>
+                                    <div className="flex justify-between w-full pr-4">
+                                        <span className="font-semibold">{data.accountName}</span>
+                                        <span className="font-bold text-lg">{formatCurrency(data.total)}</span>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <div className="p-4 bg-muted/50 rounded-b-lg">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Student</TableHead>
+                                                    <TableHead>Receipt #</TableHead>
+                                                    <TableHead className="text-right">Amount (USD)</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {data.payments.map((p) => (
+                                                <TableRow key={p.id}>
+                                                    <TableCell>{p.studentName}</TableCell>
+                                                    <TableCell><Badge variant="secondary">{p.receiptNumber}</Badge></TableCell>
+                                                    <TableCell className="text-right">{formatCurrency(p.amountInUSD)}</TableCell>
+                                                </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                         <div className="mt-4 flex justify-end">
+                                             <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button>Deposit {formatCurrency(data.total)}</Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Confirm Deposit</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Are you sure you want to deposit {formatCurrency(data.total)} into {data.accountName}? This action cannot be undone.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeposit(accountId, data.total, data.payments.map(p => p.id))}>
+                                                        Confirm Deposit
+                                                    </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                         </div>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </Accordion>
+                ) : (
+                    <div className="flex items-center justify-center h-48 text-muted-foreground">
+                        <p>No undeposited cash payments.</p>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
 }
 
 

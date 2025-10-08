@@ -42,7 +42,8 @@ export type Payment = {
   currency: 'USD' | 'ZWG';
   amountInUSD: number;
   date: string;
-  bankAccountId?: string;
+  bankAccountId?: string; // For non-cash payments
+  depositAccountId?: string; // For cash payments
   deposited: boolean;
 };
 
