@@ -1,12 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Banknote,
   BookOpen,
   LayoutDashboard,
+  LogOut,
   PanelLeft,
   Settings,
   Users,
@@ -26,7 +27,8 @@ import {
 } from '@/components/ui/tooltip';
 import { AppProvider } from '@/context/app-context';
 import { Logo } from '@/components/icons';
-import { FirebaseClientProvider } from '@/firebase';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { useUser } from '@/firebase/auth/use-user';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 const navItems = [
@@ -61,6 +63,22 @@ function AppLayoutContent({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { user, loading, signOut } = useUser();
+  const router = useRouter();
+
+  React.useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -93,6 +111,24 @@ function AppLayoutContent({
               </Tooltip>
             ))}
           </TooltipProvider>
+        </nav>
+        <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mt-auto h-9 w-9 text-muted-foreground hover:text-foreground md:h-8 md:w-8"
+                        onClick={signOut}
+                    >
+                        <LogOut className="h-5 w-5" />
+                        <span className="sr-only">Sign Out</span>
+                    </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">Sign Out</TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
         </nav>
       </aside>
       <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
@@ -127,6 +163,14 @@ function AppLayoutContent({
                     {item.label}
                   </Link>
                 ))}
+                 <Button
+                    variant="ghost"
+                    className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground justify-start"
+                    onClick={signOut}
+                  >
+                    <LogOut className="h-5 w-5" />
+                    Sign Out
+                  </Button>
               </nav>
             </SheetContent>
           </Sheet>
