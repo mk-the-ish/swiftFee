@@ -10,5 +10,9 @@ export default function Home() {
     router.replace('/dashboard');
   }, [router]);
 
-  return null;
+  return (
+    <div className="flex h-screen w-screen items-center justify-center">
+        <p>Loading...</p>
+    </div>
+  );
 }
