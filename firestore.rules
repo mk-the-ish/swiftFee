@@ -1,129 +1,142 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces role-based access control and ownership-based access control.
+ * @file Firebase Security Rules for the application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a role-based access control model for bank accounts and bursar roles,
+ * and an ownership model for student data and fees payments.
  *
  * Data Structure:
  * - /exchangeRates/{exchangeRateId}: Publicly accessible exchange rate data.
- * - /bankAccounts/{bankAccountId}: Bank account information restricted to users with the 'bursar' role.
- * - /students/{studentId}: Student information, accessible to everyone.
- * - /students/{studentId}/feesPayments/{feesPaymentId}: Fee payment records for each student, accessible to everyone.
- * - /termBilling/{termBillingId}: Term billing information, restricted to users with the 'bursar' role.
- * - /roles_bursar/{userId}: Collection to define bursar roles, accessible to the bursar.
+ * - /bankAccounts/{bankAccountId}: Bank account data, accessible only to bursars.
+ * - /students/{studentId}: Student information.
+ * - /students/{studentId}/feesPayments/{feesPaymentId}: Fee payment records for each student, accessible only to the student's owner (or potentially bursars, but bursar access is not implemented here).
+ * - /termBilling/{termBillingId}: Term billing information, accessible only to bursars.
+ * - /roles_bursar/{userId}: Collection to store bursar roles.
  *
  * Key Security Decisions:
- * - Public read access to exchange rates, student data, and fee payments.
- * - Role-based access control for bank accounts and term billing.
- * - Explicitly denies listing of bank accounts and term billing to non-bursar roles.
+ * - Exchange rates are publicly readable.
+ * - Bank accounts and term billing information are restricted to bursars.
+ * - Student and fee payment data is primarily owner-controlled, but bursar access could be added later.
+ * - User listing is generally disallowed.
+ *
+ * Denormalization for Authorization:
+ * No explicit denormalization is performed in this ruleset as the structure is designed around role-based and ownership-based access which do not require data duplication.
+ *
+ * Structural Segregation:
+ * Different data types (student data, bank accounts, exchange rates) are stored in separate collections with distinct security rules.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows anyone to read exchange rate data. Only allows create, update, and delete to authenticated users.
+     * @description Allows public read access to exchange rate data.
      * @path /exchangeRates/{exchangeRateId}
-     * @allow (get, list): if true
-     * @allow (create, update, delete): if isSignedIn()
-     * @deny (create, update, delete): if !isSignedIn()
-     * @principle Allows public read access to exchange rate data, owner-only writes
+     * @allow (get, list) Any user can read exchange rates.
+     * @deny (create, update, delete) No user can create, update, or delete exchange rates.
+     * @principle Allows public read-only access to exchange rate data.
      */
     match /exchangeRates/{exchangeRateId} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn();
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows users with the 'bursar' role to manage bank account information.
+     * @description Allows bursars to manage bank account information.
      * @path /bankAccounts/{bankAccountId}
-     * @allow (get, list, create, update, delete): if isBursar(request.auth.uid)
-     * @deny (get, list, create, update, delete): if !isBursar(request.auth.uid)
-     * @principle Enforces role-based access control for sensitive financial data.
+     * @allow (get, list, create, update, delete) Bursars can manage bank accounts.
+     * @deny (get, list, create, update, delete) Non-bursars cannot manage bank accounts.
+     * @principle Restricts bank account access to users with the 'bursar' role.
      */
     match /bankAccounts/{bankAccountId} {
-      allow get, list, create, update, delete: if isBursar(request.auth.uid);
+      allow get, list: if isBursar(request.auth.uid);
+      allow create: if isBursar(request.auth.uid);
+      allow update: if isBursar(request.auth.uid);
+      allow delete: if isBursar(request.auth.uid);
     }
 
     /**
-     * @description Allows anyone to read student information. Only allows create, update, and delete to authenticated users.
+     * @description Allows access to student information.
      * @path /students/{studentId}
-     * @allow (get, list): if true
-     * @allow (create, update, delete): if isSignedIn()
-     * @deny (create, update, delete): if !isSignedIn()
-     * @principle Allows public read access to student data, owner-only writes
+     * @allow (get, list) Any user can read students.
+     * @deny (create, update, delete) No user can create, update, or delete students.
+     * @principle Restricts writes to student data.
      */
     match /students/{studentId} {
-      allow get, list: if true;
-      allow create, update, delete: if isSignedIn();
+        allow get, list: if true; // Allowing all users to read students.
+        allow create: if false;
+        allow update: if false;
+        allow delete: if false;
     }
 
     /**
-     * @description Allows anyone to read fee payment records for each student. Only allows create, update, and delete to authenticated users.
+     * @description Allows access to fees payment records for each student.
      * @path /students/{studentId}/feesPayments/{feesPaymentId}
-     * @allow (get, list): if true
-     * @allow (create, update, delete): if isSignedIn()
-     * @deny (create, update, delete): if !isSignedIn()
-     * @principle Allows public read access to student fees payments, owner-only writes
+     * @allow (get, list, create, update, delete) Owner can access fees payments.
+     * @deny (get, list, create, update, delete) Non-owner cannot access fees payments.
+     * @principle Enforces document ownership for writes and reads.
      */
     match /students/{studentId}/feesPayments/{feesPaymentId} {
-      allow get, list: if true;
-      allow create, update, delete: if isSignedIn();
+      allow get: if isSignedIn() && request.auth.uid == studentId;
+      allow list: if isSignedIn() && request.auth.uid == studentId;
+      allow create: if isSignedIn() && request.auth.uid == studentId;
+      allow update: if isSignedIn() && request.auth.uid == studentId;
+      allow delete: if isSignedIn() && request.auth.uid == studentId;
     }
 
     /**
-     * @description Allows users with the 'bursar' role to manage term billing information.
+     * @description Allows bursars to manage term billing information.
      * @path /termBilling/{termBillingId}
-     * @allow (get, list, create, update, delete): if isBursar(request.auth.uid)
-     * @deny (get, list, create, update, delete): if !isBursar(request.auth.uid)
-     * @principle Enforces role-based access control for sensitive financial data.
+     * @allow (get, list, create, update, delete) Bursars can manage term billing.
+     * @deny (get, list, create, update, delete) Non-bursars cannot manage term billing.
+     * @principle Restricts term billing access to users with the 'bursar' role.
      */
     match /termBilling/{termBillingId} {
-      allow get, list, create, update, delete: if isBursar(request.auth.uid);
+      allow get, list: if isBursar(request.auth.uid);
+      allow create: if isBursar(request.auth.uid);
+      allow update: if isBursar(request.auth.uid);
+      allow delete: if isBursar(request.auth.uid);
     }
 
     /**
-     * @description Allows a bursar to manage their own role document.
+     * @description Grants bursar role to a user.
      * @path /roles_bursar/{userId}
-     * @allow create: if isOwner(userId);
-     * @allow get: if isOwner(userId);
-     * @allow update: if isOwner(userId) && resource != null;
-     * @allow delete: if isOwner(userId) && resource != null;
-     * @allow list: if false;
-     * @principle Enforces ownership for managing bursar role assignments.
+     * @allow create: if request.auth.uid == userId;
+     * @allow get: if isBursar(request.auth.uid);
+     * @deny list: if true;
+     * @deny update, delete: if true;
+     * @principle Only the user themselves can create their bursar role document.
      */
     match /roles_bursar/{userId} {
-      allow create: if isOwner(userId);
-      allow get: if isOwner(userId);
-      allow update: if isOwner(userId) && resource != null;
-      allow delete: if isOwner(userId) && resource != null;
+      allow create: if request.auth.uid == userId;
+      allow get: if isBursar(request.auth.uid);
       allow list: if false;
+      allow update, delete: if false;
     }
 
-    // ---- Helper functions ----
+     /**
+      * @description Allows public read access to settings.
+      * @path /settings/exchangeRate
+      * @allow (get) Any user can read exchange rates.
+      * @deny (create, update, delete) No user can create, update, or delete settings.
+      * @principle Allows public read-only access to settings data.
+      */
+     match /settings/exchangeRate {
+       allow get: if true;
+       allow create, update, delete: if false;
+     }
 
-    /**
-     * @description Checks if the user is signed in.
-     * @return {bool} True if the user is signed in, false otherwise.
-     */
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * @description Checks if the requesting user is the owner of the document.
-     * @param {string} userId The user ID to check against.
-     * @return {bool} True if the user is the owner, false otherwise.
-     */
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    function isBursar(userId) {
+      return exists(/databases/$(database)/documents/roles_bursar/$(userId));
     }
 
-    /**
-     * @description Checks if the user has the 'bursar' role.
-     * @param {string} userId The user ID to check.
-     * @return {bool} True if the user has the 'bursar' role, false otherwise.
-     */
-    function isBursar(userId) {
-        return exists(/databases/$(database)/documents/roles_bursar/$(userId));
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
     }
   }
 }
