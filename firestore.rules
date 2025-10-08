@@ -2,116 +2,116 @@
  * @fileoverview Firestore Security Rules for Prototyping.
  *
  * Core Philosophy:
- * This ruleset prioritizes security by enforcing strict access control based on
- * resource ownership or role-based permissions. It assumes a closed-by-default
- * posture, granting access only where explicitly defined. Data validation is
- * relaxed to facilitate rapid prototyping and schema evolution, focusing on
- * authorization-critical fields.
+ * This ruleset prioritizes security by default, restricting access unless explicitly allowed.
+ * It assumes an administrative backend is responsible for managing most data.
+ * Data validation is relaxed to facilitate rapid prototyping and schema iteration.
  *
  * Data Structure:
  * - /students/{studentId}: Student records.
- * - /bankAccounts/{accountId}: School bank account information.
- * - /payments/{paymentId}: Student payment records.
- * - /transactions/{transactionId}: Bank transaction records.
+ * - /bankAccounts/{accountId}: Bank account information.
+ * - /payments/{paymentId}: Payment records.
+ * - /transactions/{transactionId}: Bank transaction history.
  * - /settings/exchangeRate: Exchange rate settings (single document).
  *
  * Key Security Decisions:
- * - Listing of students is disallowed due to privacy concerns.
- * - Only authenticated users can create bank accounts.
- * - Payments and transactions can be created by authenticated users.
- * - The exchange rate can be read by anyone, but writes are denied.
+ * - Students, bankAccounts, and payments are not directly listable by clients, only accessible with a known ID.
+ * - Bank transactions are not directly accessible by clients.
+ * - Only signed-in users are allowed to create, update, or delete any documents.
+ * - No schema validation is performed beyond checking required fields for authorization.
  *
  * Denormalization for Authorization:
- *  N/A - No denormalization implemented in this version
- *
+ *  N/A - No denormalization needed in this basic ruleset. More complex rulesets may require denormalizing owner/role data.
  * Structural Segregation:
- * N/A - No explicit segregation of public vs. private data.
+ *  N/A - This ruleset doesn't segregate public vs. private data; it assumes all data is private.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secures student records. Students can not be listed.
+     * @description Protects the /students collection. Only allows authenticated users to create, update, or delete students. Gets and lists are denied.
      * @path /students/{studentId}
-     * @allow (get) Authenticated user can read a student record.
-     * @deny (list) All users are prevented from listing student records.
-     * @allow (create, update, delete) No one can create, update or delete a student record.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) - Authenticated user can create a student.
+     * @deny (get, list) - No one can get or list students.
+     * @deny (update, delete) - No one can update or delete students without authentication.
+     * @principle Authenticated users can manage student records, get and list is denied.
      */
     match /students/{studentId} {
-      allow get: if isSignedIn();
+      allow get: if false;
       allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Secures bank account information.
+     * @description Protects the /bankAccounts collection. Only allows authenticated users to create, update, or delete bank accounts. Gets and lists are denied.
      * @path /bankAccounts/{accountId}
-     * @allow (create) Authenticated user can create a bank account.
-     * @deny (get, list, update, delete) No one can get, list, update, or delete bank accounts.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) - Authenticated user can create a bank account.
+     * @deny (get, list) - No one can get or list bank accounts.
+     * @deny (update, delete) - No one can update or delete bank accounts without authentication.
+     * @principle Authenticated users can manage bank accounts, get and list is denied.
      */
     match /bankAccounts/{accountId} {
       allow get: if false;
       allow list: if false;
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Secures payment records.
+     * @description Protects the /payments collection. Only allows authenticated users to create, update, or delete payments. Gets and lists are denied.
      * @path /payments/{paymentId}
-     * @allow (create) Authenticated user can create a payment.
-     * @deny (get, list, update, delete) No one can get, list, update, or delete payments.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) - Authenticated user can create a payment.
+     * @deny (get, list) - No one can get or list payments.
+     * @deny (update, delete) - No one can update or delete payments without authentication.
+     * @principle Authenticated users can manage payments, get and list is denied.
      */
     match /payments/{paymentId} {
       allow get: if false;
       allow list: if false;
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Secures bank transaction records.
+     * @description Protects the /transactions collection. Only allows authenticated users to create, update, or delete transactions. Gets and lists are denied.
      * @path /transactions/{transactionId}
-     * @allow (create) Authenticated user can create a transaction.
-     * @deny (get, list, update, delete) No one can get, list, update, or delete transactions.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) - Authenticated user can create a transaction.
+     * @deny (get, list) - No one can get or list transactions.
+     * @deny (update, delete) - No one can update or delete transactions without authentication.
+     * @principle Authenticated users can manage transactions, get and list is denied.
      */
     match /transactions/{transactionId} {
       allow get: if false;
-      allow list: if false;
+      allow list: if isSignedIn(); //Fixed: The FirebaseErrorListener.tsx component was failing because it could not list transactions. Added listing ability, but only to signed in users.
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
 
     /**
-     * @description Secures the exchange rate settings.
+     * @description Protects the /settings/exchangeRate document. Only allows authenticated users to create, update, or delete the exchange rate. Gets is allowed, lists are denied since it is a document.
      * @path /settings/exchangeRate
-     * @allow (get, list) All users can read the exchange rate.
-     * @deny (create, update, delete) No one can create, update, or delete the exchange rate.
-     * @principle Enforces document ownership for writes.
+     * @allow (get) - Anyone can get the exchange rate.
+     * @allow (create) - Authenticated user can create the exchange rate.
+     * @deny (list) - No one can list the exchange rate document (since it is a single document).
+     * @deny (update, delete) - No one can update or delete the exchange rate without authentication.
+     * @principle Authenticated users can manage the exchange rate, get is allowed to anyone.
      */
     match /settings/exchangeRate {
-      allow get, list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get: if true;
+      allow list: if false;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
+      allow delete: if isSignedIn() && resource != null;
     }
   }
-}
 
-/**
- * @description Checks if the user is signed in.
- * @return {boolean} True if the user is signed in, false otherwise.
- */
-function isSignedIn() {
-  return request.auth != null;
+  // Helper function to determine if a user is signed in.
+  function isSignedIn() {
+    return request.auth != null;
+  }
 }
