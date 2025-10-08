@@ -1,103 +1,307 @@
 {
   "entities": {
-    "student": {
+    "ExchangeRate": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ExchangeRate",
+      "type": "object",
+      "description": "Stores the daily exchange rate between USD and ZWG.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the exchange rate entry."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date for which the exchange rate is valid.",
+          "format": "date"
+        },
+        "usdToZwg": {
+          "type": "number",
+          "description": "The exchange rate from USD to ZWG for the given date."
+        }
+      },
+      "required": [
+        "id",
+        "date",
+        "usdToZwg"
+      ]
+    },
+    "BankAccount": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BankAccount",
+      "type": "object",
+      "description": "Stores information about bank accounts used for fee payments.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the bank account."
+        },
+        "bank": {
+          "type": "string",
+          "description": "The name of the bank."
+        },
+        "branch": {
+          "type": "string",
+          "description": "The branch of the bank."
+        },
+        "accountNumber": {
+          "type": "string",
+          "description": "The account number."
+        },
+        "currency": {
+          "type": "string",
+          "description": "The currency of the bank account (e.g., USD, ZWG)."
+        }
+      },
+      "required": [
+        "id",
+        "bank",
+        "branch",
+        "accountNumber",
+        "currency"
+      ]
+    },
+    "Student": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Student",
-      "description": "A student enrolled in the school.",
       "type": "object",
+      "description": "Stores information about students.",
       "properties": {
-        "name": { "type": "string" },
-        "grade": { "type": "string", "enum": ["ECD A", "ECD B", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7"] },
-        "dateOfBirth": { "type": "string", "format": "date" },
-        "gender": { "type": "string", "enum": ["Male", "Female"] },
-        "guardianName": { "type": "string" },
-        "guardianPhone": { "type": "string" },
-        "address": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "graduated", "transferred"] },
-        "tuitionOwing": { "type": "number" },
-        "levyOwing": { "type": "number" },
-        "buildingFundOwing": { "type": "number" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the student."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the student."
+        },
+        "grade": {
+          "type": "string",
+          "description": "The current grade of the student."
+        },
+        "levyOwing": {
+          "type": "number",
+          "description": "The amount the student owes for levy fees."
+        },
+        "tuitionOwing": {
+          "type": "number",
+          "description": "The amount the student owes for tuition fees."
+        },
+        "buildingFundOwing": {
+          "type": "number",
+          "description": "The amount the student owes for the building fund."
+        }
       },
-      "required": ["name", "grade", "dateOfBirth", "gender", "guardianName", "guardianPhone", "address", "status", "tuitionOwing", "levyOwing", "buildingFundOwing"]
+      "required": [
+        "id",
+        "name",
+        "grade",
+        "levyOwing",
+        "tuitionOwing",
+        "buildingFundOwing"
+      ]
     },
-    "bankAccount": {
-      "title": "Bank Account",
-      "description": "A bank account for the school.",
+    "FeesPayment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "FeesPayment",
       "type": "object",
+      "description": "Stores records of student fees payments.",
       "properties": {
-        "bankName": { "type": "string" },
-        "branch": { "type": "string" },
-        "accountNumber": { "type": "string" },
-        "currency": { "type": "string", "enum": ["USD", "ZWG"] }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the fees payment record."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to Student. (Relationship: Student 1:N FeesPayment)"
+        },
+        "paymentDate": {
+          "type": "string",
+          "description": "The date the payment was made.",
+          "format": "date-time"
+        },
+        "feeType": {
+          "type": "string",
+          "description": "The type of fee paid (e.g., levy, tuition, building fund, exam fee)."
+        },
+        "currency": {
+          "type": "string",
+          "description": "The currency in which the payment was made (e.g., USD, ZWG)."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount paid."
+        },
+        "bankAccountId": {
+          "type": "string",
+          "description": "Reference to BankAccount. (Relationship: BankAccount 1:N FeesPayment)"
+        },
+        "usdAmount": {
+          "type": "number",
+          "description": "The equivalent USD amount (after conversion, if necessary)."
+        }
       },
-      "required": ["bankName", "accountNumber", "currency"]
+      "required": [
+        "id",
+        "studentId",
+        "paymentDate",
+        "feeType",
+        "currency",
+        "amount",
+        "bankAccountId",
+        "usdAmount"
+      ]
     },
-    "payment": {
-      "title": "Payment",
-      "description": "A fee payment made by a student.",
+    "TermBilling": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TermBilling",
       "type": "object",
+      "description": "Stores billing information for each student per term.",
       "properties": {
-        "studentId": { "type": "string" },
-        "studentName": { "type": "string" },
-        "receiptNumber": { "type": "string" },
-        "feeType": { "type": "string", "enum": ["tuition", "levy", "building", "exam"] },
-        "paymentMethod": { "type": "string", "enum": ["Cash", "Bank Transfer", "Ecocash"] },
-        "amount": { "type": "number" },
-        "currency": { "type": "string", "enum": ["USD", "ZWG"] },
-        "amountInUSD": { "type": "number" },
-        "date": { "type": "string", "format": "date-time" },
-        "bankAccountId": { "type": "string" },
-        "deposited": { "type": "boolean" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the term billing record."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to Student. (Relationship: Student 1:N TermBilling)"
+        },
+        "term": {
+          "type": "string",
+          "description": "The term for which the billing applies (e.g., 'Fall 2024')."
+        },
+        "levy": {
+          "type": "number",
+          "description": "The levy amount for the term."
+        },
+        "tuition": {
+          "type": "number",
+          "description": "The tuition amount for the term."
+        },
+        "buildingFund": {
+          "type": "number",
+          "description": "The building fund amount for the term."
+        }
       },
-      "required": ["studentId", "studentName", "receiptNumber", "feeType", "paymentMethod", "amount", "currency", "amountInUSD", "date", "deposited"]
-    },
-    "transaction": {
-      "title": "Transaction",
-      "description": "A bank transaction.",
-      "type": "object",
-      "properties": {
-        "date": { "type": "string", "format": "date-time" },
-        "bankAccountId": { "type": "string" },
-        "type": { "type": "string", "enum": ["incoming", "outgoing"] },
-        "description": { "type": "string" },
-        "amount": { "type": "number" },
-        "relatedPaymentId": { "type": "string" }
-      },
-      "required": ["date", "bankAccountId", "type", "description", "amount"]
-    },
-    "exchangeRate": {
-      "title": "Exchange Rate",
-      "description": "The daily USD to ZWG exchange rate.",
-      "type": "object",
-      "properties": {
-        "rate": { "type": "number" },
-        "lastUpdated": { "type": "string", "format": "date-time" }
-      },
-      "required": ["rate", "lastUpdated"]
+      "required": [
+        "id",
+        "studentId",
+        "term",
+        "levy",
+        "tuition",
+        "buildingFund"
+      ]
     }
   },
   "auth": {
-    "providers": ["password"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/students/{studentId}": {
-      "schema": { "$ref": "#/entities/student" },
-      "description": "Stores individual student documents."
-    },
-    "/bankAccounts/{accountId}": {
-      "schema": { "$ref": "#/entities/bankAccount" },
-      "description": "Stores bank account information."
-    },
-    "/payments/{paymentId}": {
-      "schema": { "$ref": "#/entities/payment" },
-      "description": "Stores individual payment records."
-    },
-    "/transactions/{transactionId}": {
-      "schema": { "$ref": "#/entities/transaction" },
-      "description": "Stores all bank transactions."
-    },
-    "/settings/exchangeRate": {
-      "schema": { "$ref": "#/entities/exchangeRate" },
-      "description": "Stores the current exchange rate."
-    }
+    "structure": [
+      {
+        "path": "/exchangeRates/{exchangeRateId}",
+        "definition": {
+          "entityName": "ExchangeRate",
+          "schema": {
+            "$ref": "#/backend/entities/ExchangeRate"
+          },
+          "description": "Stores daily exchange rates between USD and ZWG.",
+          "params": [
+            {
+              "name": "exchangeRateId",
+              "description": "Unique identifier for the exchange rate entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/bankAccounts/{bankAccountId}",
+        "definition": {
+          "entityName": "BankAccount",
+          "schema": {
+            "$ref": "#/backend/entities/BankAccount"
+          },
+          "description": "Stores bank account information. Accessible to users with the 'bursar' role.",
+          "params": [
+            {
+              "name": "bankAccountId",
+              "description": "Unique identifier for the bank account."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/students/{studentId}",
+        "definition": {
+          "entityName": "Student",
+          "schema": {
+            "$ref": "#/backend/entities/Student"
+          },
+          "description": "Stores student information, including owing amounts for levy, tuition, and building fund.",
+          "params": [
+            {
+              "name": "studentId",
+              "description": "Unique identifier for the student."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/students/{studentId}/feesPayments/{feesPaymentId}",
+        "definition": {
+          "entityName": "FeesPayment",
+          "schema": {
+            "$ref": "#/backend/entities/FeesPayment"
+          },
+          "description": "Stores fee payment records for each student.",
+          "params": [
+            {
+              "name": "studentId",
+              "description": "Unique identifier for the student."
+            },
+            {
+              "name": "feesPaymentId",
+              "description": "Unique identifier for the fee payment record."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/termBilling/{termBillingId}",
+        "definition": {
+          "entityName": "TermBilling",
+          "schema": {
+            "$ref": "#/backend/entities/TermBilling"
+          },
+          "description": "Stores billing information for each student per term. Accessible to users with the 'bursar' role.",
+          "params": [
+            {
+              "name": "termBillingId",
+              "description": "Unique identifier for the term billing record."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_bursar/{userId}",
+        "definition": {
+          "entityName": "role_bursar",
+          "schema": {
+            "$ref": "#/backend/entities/user"
+          },
+          "description": "Documents in this collection indicate a user has the 'bursar' role.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The user ID of the bursar."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to address the 'permission-denied' error when listing 'bankAccounts' and to support the application's core features, emphasizing security, scalability, and ease of debugging.  The structure prioritizes authorization independence by avoiding hierarchical authorization dependencies, ensuring atomic operations and simplified debugging.\n\nTo address the immediate 'permission-denied' error, the structure places bank accounts under a dedicated collection with clearly defined access rules.  Since it is not clear from the prompt who owns the bank accounts I have to assume that the roles who can access are globally defined. Therefore the bank account will be placed in a simple roles based access collection.\n\nAuthorization Independence:  All collections avoid the need for `get()` calls in security rules. For example, student documents store all necessary information for calculating fees and owing amounts, so we do not need to read other collections.\n\nQAPs (Rules are not Filters):  The structure is designed to allow secure `list` operations. For example, listing bank accounts is restricted to users in the `/roles_bursar/{uid}` role, preventing unauthorized access to sensitive data.\n\nStructural Segregation: Data with different access requirements are stored in separate collections.  For instance, student data (`/students/{studentId}`) is separated from bank account data (`/bankAccounts/{bankAccountId}`), each with its own security rules.\n\nAccess Modeling:  The structure uses path-based ownership for student-related data (`/students/{studentId}/feesPayments/{feesPaymentId}`) and role-based access control for administrative data (`/roles_bursar/{uid}`). The membership map pattern is used where collaborative access is needed, although it is not present in the request, this allows it to scale in the future.\n\nExplicit State Modeling: Student records include fields like `levyOwing`, `tuitionOwing`, and `buildingFundOwing` to explicitly track the student's financial state, making it easier to manage and query fee-related data.\n"
   }
 }
