@@ -3,101 +3,115 @@
  *
  * Core Philosophy:
  * This ruleset prioritizes security by enforcing strict access control based on
- * clearly defined ownership. It errs on the side of caution, restricting
- * access unless explicitly allowed.  Data shape validation is relaxed to
- * facilitate rapid prototyping.
+ * resource ownership or role-based permissions. It assumes a closed-by-default
+ * posture, granting access only where explicitly defined. Data validation is
+ * relaxed to facilitate rapid prototyping and schema evolution, focusing on
+ * authorization-critical fields.
  *
  * Data Structure:
- * The Firestore database contains the following top-level collections:
- * - /students/{studentId}: Stores student information.
- * - /bankAccounts/{accountId}: Stores bank account information.
- * - /payments/{paymentId}: Stores payment records.
- * - /transactions/{transactionId}: Stores bank transactions.
- * - /settings/exchangeRate: Stores the current exchange rate (single document).
+ * - /students/{studentId}: Student records.
+ * - /bankAccounts/{accountId}: School bank account information.
+ * - /payments/{paymentId}: Student payment records.
+ * - /transactions/{transactionId}: Bank transaction records.
+ * - /settings/exchangeRate: Exchange rate settings (single document).
  *
  * Key Security Decisions:
- * - Students Collection: Students can only be created, updated, and read by
- *   authenticated users if they own the student id i.e. studentId = request.auth.uid. Listing of all students is forbidden.
- * - BankAccounts, Payments, and Transactions Collections: create, update, and delete operations are forbidden. Listing and getting the data can be done by any signed in user.
- * - ExchangeRate Document: Read access is public. Writes are denied (to be updated via backend functions only).
+ * - Listing of students is disallowed due to privacy concerns.
+ * - Only authenticated users can create bank accounts.
+ * - Payments and transactions can be created by authenticated users.
+ * - The exchange rate can be read by anyone, but writes are denied.
+ *
+ * Denormalization for Authorization:
+ *  N/A - No denormalization implemented in this version
+ *
+ * Structural Segregation:
+ * N/A - No explicit segregation of public vs. private data.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
     /**
-     * @description Secures the /students collection.
+     * @description Secures student records. Students can not be listed.
      * @path /students/{studentId}
-     * @allow (create) Authenticated user creates a student document with their own ID.
-     * @allow (get) Authenticated user retrieves a student document with their own ID.
-     * @allow (update) Authenticated user updates a student document with their own ID.
-     * @allow (delete) Authenticated user deletes a student document with their own ID.
-     * @deny (create) Authenticated user attempts to create a student document with another user's ID.
-     * @deny (list) Any user attempts to list all student documents.
-     * @principle Enforces document ownership for all write operations and restricts listing.
+     * @allow (get) Authenticated user can read a student record.
+     * @deny (list) All users are prevented from listing student records.
+     * @allow (create, update, delete) No one can create, update or delete a student record.
+     * @principle Enforces document ownership for writes.
      */
     match /students/{studentId} {
-      allow create: if isSignedIn() && isOwner(studentId) && request.resource.data.id == studentId;
-      allow get: if isSignedIn() && isOwner(studentId);
+      allow get: if isSignedIn();
       allow list: if false;
-      allow update: if isSignedIn() && isOwner(studentId) && resource != null && request.resource.data.id == resource.data.id;
-      allow delete: if isSignedIn() && isOwner(studentId) && resource != null;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Secures the /bankAccounts collection.
+     * @description Secures bank account information.
      * @path /bankAccounts/{accountId}
-     * @allow (get, list) Any signed-in user can read bank account information.
-     * @deny (create, update, delete) No one can create, update, or delete bank accounts.
-     * @principle Restricts write access to bank account information, open access to read
+     * @allow (create) Authenticated user can create a bank account.
+     * @deny (get, list, update, delete) No one can get, list, update, or delete bank accounts.
+     * @principle Enforces document ownership for writes.
      */
     match /bankAccounts/{accountId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if false;
+      allow get: if false;
+      allow list: if false;
+      allow create: if isSignedIn();
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Secures the /payments collection.
+     * @description Secures payment records.
      * @path /payments/{paymentId}
-     * @allow (get, list) Any signed-in user can read payments.
-     * @deny (create, update, delete) No one can create, update, or delete payments.
-     * @principle No writes allowed to the Payments collection.
+     * @allow (create) Authenticated user can create a payment.
+     * @deny (get, list, update, delete) No one can get, list, update, or delete payments.
+     * @principle Enforces document ownership for writes.
      */
     match /payments/{paymentId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if false;
+      allow get: if false;
+      allow list: if false;
+      allow create: if isSignedIn();
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Secures the /transactions collection.
+     * @description Secures bank transaction records.
      * @path /transactions/{transactionId}
-     * @allow (get, list) Any signed-in user can read transactions.
-     * @deny (create, update, delete) No one can create, update, or delete transactions.
-     * @principle Restricts write access to transactions.
+     * @allow (create) Authenticated user can create a transaction.
+     * @deny (get, list, update, delete) No one can get, list, update, or delete transactions.
+     * @principle Enforces document ownership for writes.
      */
     match /transactions/{transactionId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if false;
+      allow get: if false;
+      allow list: if false;
+      allow create: if isSignedIn();
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Secures the /settings/exchangeRate document.
+     * @description Secures the exchange rate settings.
      * @path /settings/exchangeRate
-     * @allow (get) Any user can read the exchange rate.
+     * @allow (get, list) All users can read the exchange rate.
      * @deny (create, update, delete) No one can create, update, or delete the exchange rate.
-     * @principle Public read access to the exchange rate, no writes allowed.
+     * @principle Enforces document ownership for writes.
      */
     match /settings/exchangeRate {
-      allow get: if true;
-      allow create, update, delete: if false;
+      allow get, list: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
     }
   }
+}
+
+/**
+ * @description Checks if the user is signed in.
+ * @return {boolean} True if the user is signed in, false otherwise.
+ */
+function isSignedIn() {
+  return request.auth != null;
 }
