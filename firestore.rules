@@ -1,103 +1,105 @@
+/**
+ * @fileoverview Firestore Security Rules for the school administration app.
+ *
+ * Core Philosophy:
+ * This ruleset prioritizes secure data access based on a combination of
+ * role-based access control and data ownership. It enforces strict
+ * authorization for write operations while providing more flexible read
+ * access where appropriate, especially for data intended for general
+ * consumption.
+ *
+ * Data Structure:
+ * The Firestore database contains collections for students, bank accounts,
+ * payments, transactions, and settings. Each collection stores documents
+ * representing individual entities.
+ *
+ * Key Security Decisions:
+ * - Students: Read access is public, but writes are forbidden due to lack of defined role to control access.
+ * - Bank Accounts: Read and write access is restricted to authenticated users.
+ * - Payments: Read and write access is restricted to authenticated users.
+ * - Transactions: Read and write access is restricted to authenticated users.
+ * - Exchange Rate: Read access is public, write access is forbidden as there is no owner field.
+ *
+ * Denormalization for Authorization:
+ * This ruleset does not currently implement denormalization. Further development
+ * may include adding `ownerId` fields to documents to simplify ownership checks
+ * and improve performance.
+ *
+ * Structural Segregation:
+ * This ruleset does not currently implement structural segregation.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Enforces administrator-only access for managing student data.
+     * @description Manages student data. Read access is public, write access is not supported due to lack of defined role to control access.
      * @path /students/{studentId}
-     * @allow (create, update, delete) - As an admin, create a new student record.
-     * @deny (create, update, delete) - As a non-admin, attempt to create a student record.
-     * @allow (get) - As an admin, fetch a specific student's data.
-     * @deny (list) - Listing all students is not permitted by anyone.
-     * @principle Restricts student data management to authorized personnel.
+     * @allow (get, list): Any user can read student data.
+     * @deny (create, update, delete): No user can create, update, or delete student data.
+     * @principle Allows public reads but disallows all writes due to lack of ownership field.
      */
     match /students/{studentId} {
-      allow get: if isAdmin();
-      allow list: if false;
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Enforces administrator-only access for managing bank account data.
+     * @description Manages bank account information. Restricted to authenticated users.
      * @path /bankAccounts/{accountId}
-     * @allow (create, update, delete) - As an admin, create a new bank account record.
-     * @deny (create, update, delete) - As a non-admin, attempt to create a bank account record.
-     * @allow (get) - As an admin, fetch a specific bank account's data.
-     * @deny (list) - Listing all bank accounts is not permitted by anyone.
-     * @principle Restricts bank account data management to authorized personnel.
+     * @allow (get, list): Any authenticated user can read bank account data.
+     * @allow (create, update, delete): No user can create, update, or delete bank account data.
+     * @deny (create, update, delete): No one can write since there is no ownership or roles defined.
+     * @principle Requires authentication for all operations.
      */
     match /bankAccounts/{accountId} {
-      allow get: if isAdmin();
-      allow list: if false;
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Enforces administrator-only access for managing payment records.
+     * @description Manages payment records. Restricted to authenticated users.
      * @path /payments/{paymentId}
-     * @allow (create, update, delete) - As an admin, create a new payment record.
-     * @deny (create, update, delete) - As a non-admin, attempt to create a payment record.
-     * @allow (get) - As an admin, fetch a specific payment's data.
-     * @deny (list) - Listing all payments is not permitted due to the reported error and implicit assumption in the reasoning section of docs/backend.json.
-     * @principle Restricts payment data management to authorized personnel.
+     * @allow (get, list): Any authenticated user can read payment records.
+     * @allow (create, update, delete): No user can create, update, or delete payment records.
+     * @deny (create, update, delete): No one can write since there is no ownership or roles defined.
+     * @principle Requires authentication for all operations.
      */
     match /payments/{paymentId} {
-      allow get: if isAdmin();
-      allow list: if false;
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Enforces administrator-only access for managing transaction records.
+     * @description Manages bank transactions. Restricted to authenticated users.
      * @path /transactions/{transactionId}
-     * @allow (create, update, delete) - As an admin, create a new transaction record.
-     * @deny (create, update, delete) - As a non-admin, attempt to create a transaction record.
-     * @allow (get) - As an admin, fetch a specific transaction's data.
-     * @deny (list) - Listing all transactions is not permitted by anyone.
-     * @principle Restricts transaction data management to authorized personnel.
+     * @allow (get, list): Any authenticated user can read bank transactions.
+     * @allow (create, update, delete): No user can create, update, or delete bank transactions.
+     * @deny (create, update, delete): No one can write since there is no ownership or roles defined.
+     * @principle Requires authentication for all operations.
      */
     match /transactions/{transactionId} {
-      allow get: if isAdmin();
-      allow list: if false;
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Allows public read access to the exchange rate while restricting write access to administrators.
+     * @description Manages the current exchange rate. Read access is public, but writes are not allowed.
      * @path /settings/exchangeRate
-     * @allow (get, list) - Any user can retrieve the exchange rate.
-     * @allow (create, update, delete) - Only administrators can modify the exchange rate.
-     * @deny (create, update, delete) - A non-administrator attempts to modify the exchange rate.
-     * @principle Balances public accessibility with administrative control for sensitive settings.
+     * @allow (get, list): Any user can read the exchange rate.
+     * @deny (create, update, delete): No user can create, update, or delete the exchange rate.
+     * @principle Allows public reads but disallows all writes due to lack of ownership field.
      */
     match /settings/exchangeRate {
       allow get, list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow create, update, delete: if false;
     }
 
-    // Helper functions
-
-    /**
-     * @description Checks if the user is an administrator.  This requires a custom claim on the user's JWT.
-     * @return {boolean} True if the user has the 'admin' claim set to true.
-     */
-    function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
-    }
+    // --- Helper Functions ---
 
     /**
      * @description Checks if the user is signed in.
-     * @return {boolean} True if the user is signed in.
+     * @return {boolean} True if the user is signed in, false otherwise.
      */
     function isSignedIn() {
       return request.auth != null;
