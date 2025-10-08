@@ -98,7 +98,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const owingKey = `${feeType}Owing` as keyof Student;
       const currentOwing = (student[owingKey] as number) || 0;
-      const newOwing = Math.max(0, currentOwing - amount);
+      const newOwing = currentOwing - amount;
       
       const updateData = { [owingKey]: newOwing };
       const studentRef = doc(firestore, 'students', studentId);
