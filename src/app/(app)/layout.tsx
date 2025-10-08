@@ -27,6 +27,7 @@ import {
 import { AppProvider } from '@/context/app-context';
 import { Logo } from '@/components/icons';
 import { FirebaseClientProvider } from '@/firebase';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -151,6 +152,7 @@ export default function AppLayout({
     <FirebaseClientProvider>
       <AppProvider>
         <AppLayoutContent>{children}</AppLayoutContent>
+        <FirebaseErrorListener />
       </AppProvider>
     </FirebaseClientProvider>
   );
