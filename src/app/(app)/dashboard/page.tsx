@@ -213,7 +213,42 @@ export default function DashboardPage() {
           </p>
         </CardContent>
       </Card>
-      <Card>
+
+      <div className="lg:col-span-2">
+        <CashFlowChart currency="USD" />
+      </div>
+      <div className="lg:col-span-2">
+        <CashFlowChart currency="ZWG" />
+      </div>
+      
+      <div className="lg:col-span-3">
+        <Card className="h-full">
+            <CardHeader>
+            <CardTitle>Set Daily Exchange Rate</CardTitle>
+            <CardDescription>
+                Enter the exchange rate for 1 USD to ZWG. This will be used for all ZWG transactions today.
+            </CardDescription>
+            </CardHeader>
+            <CardContent>
+            <form onSubmit={handleSetRate} className="flex items-end gap-4">
+                <div className="grid gap-2 flex-1">
+                <Label htmlFor="exchange-rate">1 USD to ZWG</Label>
+                <Input
+                    id="exchange-rate"
+                    type="number"
+                    step="0.01"
+                    value={rateInput}
+                    onChange={(e) => setRateInput(e.target.value)}
+                    placeholder="e.g., 13.5"
+                />
+                </div>
+                <Button type="submit">Set Rate</Button>
+            </form>
+            </CardContent>
+        </Card>
+      </div>
+
+       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Students in Credit</CardTitle>
           <Award className="h-4 w-4 text-muted-foreground" />
@@ -225,36 +260,7 @@ export default function DashboardPage() {
           </p>
         </CardContent>
       </Card>
-      <div className="lg:col-span-2">
-        <CashFlowChart currency="USD" />
-      </div>
-      <div className="lg:col-span-2">
-        <CashFlowChart currency="ZWG" />
-      </div>
-      <Card className="md:col-span-2 lg:col-span-4">
-        <CardHeader>
-          <CardTitle>Set Daily Exchange Rate</CardTitle>
-          <CardDescription>
-            Enter the exchange rate for 1 USD to ZWG. This will be used for all ZWG transactions today.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSetRate} className="flex items-end gap-4">
-            <div className="grid gap-2 flex-1">
-              <Label htmlFor="exchange-rate">1 USD to ZWG</Label>
-              <Input
-                id="exchange-rate"
-                type="number"
-                step="0.01"
-                value={rateInput}
-                onChange={(e) => setRateInput(e.target.value)}
-                placeholder="e.g., 13.5"
-              />
-            </div>
-            <Button type="submit">Set Rate</Button>
-          </form>
-        </CardContent>
-      </Card>
+
     </div>
   );
 }
