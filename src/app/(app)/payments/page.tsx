@@ -69,9 +69,12 @@ const paymentFormSchema = z.object({
     if (data.paymentMethod === 'Cash') {
         return !!data.depositAccountId;
     }
-    return !!data.bankAccountId;
+    if (data.paymentMethod === 'Bank Transfer' || data.paymentMethod === 'Ecocash') {
+        return !!data.bankAccountId;
+    }
+    return true;
 }, {
-    message: "A bank account must be selected.",
+    message: "A bank account must be selected for this payment method.",
     path: ["bankAccountId"], // This error can be shown on both, but bankAccountId is fine
 });
 
@@ -183,8 +186,8 @@ export default function PaymentsPage() {
       date: new Date().toISOString(),
       receiptNumber: values.receiptNumber,
       deposited: values.paymentMethod !== 'Cash', // Cash payments are deposited later
-      bankAccountId: values.paymentMethod !== 'Cash' ? values.bankAccountId : undefined,
-      depositAccountId: values.paymentMethod === 'Cash' ? values.depositAccountId : undefined,
+      ...(values.paymentMethod !== 'Cash' && { bankAccountId: values.bankAccountId }),
+      ...(values.paymentMethod === 'Cash' && { depositAccountId: values.depositAccountId }),
     };
 
     await addPayment(newPayment);
