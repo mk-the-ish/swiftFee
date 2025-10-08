@@ -116,11 +116,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (student.status === 'active') {
         const studentRef = doc(firestore, 'students', student.id);
         const currentGradeIndex = gradeProgression.indexOf(student.grade);
-        const nextGradeIndex = currentGradeIndex + 1;
-        if (nextGradeIndex < gradeProgression.length) {
-            batch.update(studentRef, { grade: gradeProgression[nextGradeIndex] });
-        } else {
+        
+        if (student.grade === 'Grade 7') {
             batch.update(studentRef, { status: 'graduated' });
+        } else {
+            const nextGradeIndex = currentGradeIndex + 1;
+            if (nextGradeIndex < gradeProgression.length) {
+                batch.update(studentRef, { grade: gradeProgression[nextGradeIndex] });
+            }
         }
       }
     });

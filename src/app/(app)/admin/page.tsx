@@ -174,7 +174,7 @@ function NewYearUpgrade() {
       <CardContent>
         <p className="text-sm text-muted-foreground">
             The grade progression is: ECD A → ECD B → Grade 1 → ... → Grade 7.
-            Students in Grade 7 will remain in Grade 7.
+            Students in Grade 7 will have their status set to 'Graduated'.
         </p>
       </CardContent>
       <CardFooter>
