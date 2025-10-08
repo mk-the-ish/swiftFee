@@ -35,7 +35,7 @@ import { formatCurrency } from '@/lib/utils';
 import { User, Cake, Phone, Home, Printer, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Student } from '@/lib/types';
-import { EditStudentForm } from '../page';
+import { AddStudentForm } from '../page';
 import { Logo } from '@/components/icons';
 
 function InfoCard({ icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
@@ -193,7 +193,7 @@ function EditStudentDialog({ student }: { student: Student }) {
                     <DialogTitle>Edit Student</DialogTitle>
                     <DialogDescription>Update the details for {student.name}.</DialogDescription>
                 </DialogHeader>
-                <EditStudentForm setOpen={setOpen} studentToEdit={student} />
+                <AddStudentForm setOpen={setOpen} studentToEdit={student} />
             </DialogContent>
         </Dialog>
     )
