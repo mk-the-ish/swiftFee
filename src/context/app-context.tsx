@@ -12,7 +12,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 interface AppContextType {
   students: Student[];
   addStudent: (student: Omit<Student, 'id'>) => Promise<void>;
-  updateStudent: (id: string, data: Partial<Student>) => Promise<void>;
+  updateStudent: (id: string, data: Partial<Omit<Student, 'id'>>) => Promise<void>;
   updateStudentBalances: (studentId: string, feeType: 'tuition' | 'levy' | 'building', amount: number) => Promise<void>;
   bulkUpgradeGrades: () => Promise<void>;
   bulkBillStudents: (values: { tuition: number; levy: number; buildingFund: number; }) => Promise<void>;
@@ -39,8 +39,8 @@ const gradeProgression = ['ECD A', 'ECD B', 'Grade 1', 'Grade 2', 'Grade 3', 'Gr
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
 
-  const { data: students = [], add: addStudent, update: updateStudent } = useCollection<Student>(firestore ? collection(firestore, 'students') : null);
-  const { data: payments = [], add: addPayment, update: updatePayment } = useCollection<Payment>(firestore ? collection(firestore, 'payments') : null);
+  const { data: students = [], add: addStudentToCollection, update: updateStudentInCollection } = useCollection<Student>(firestore ? collection(firestore, 'students') : null);
+  const { data: payments = [], add: addPayment } = useCollection<Payment>(firestore ? collection(firestore, 'payments') : null);
   const { data: bankAccounts = [], add: addBankAccountToCollection } = useCollection<BankAccount>(firestore ? collection(firestore, 'bankAccounts') : null);
   const { data: transactions = [], add: addTransactionToCollection } = useCollection<Transaction>(firestore ? collection(firestore, 'transactions') : null);
   const { data: exchangeRate } = useDoc<ExchangeRate>(firestore ? doc(firestore, 'settings', 'exchangeRate') : null);
@@ -54,6 +54,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .catch((err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: rateRef.path, operation: 'update', requestResourceData: data }));
       });
+  };
+
+  const addStudent = async (student: Omit<Student, 'id'>) => {
+      if (!firestore) return;
+      const ref = collection(firestore, 'students');
+      addDoc(ref, student).catch(err => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'create', requestResourceData: student }));
+      });
+  }
+
+  const updateStudent = async (id: string, data: Partial<Omit<Student, 'id'>>) => {
+      if (!firestore) return;
+      const studentRef = doc(firestore, 'students', id);
+      updateDoc(studentRef, data)
+        .catch((err) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: studentRef.path, operation: 'update', requestResourceData: data }));
+        });
   };
 
   const addBankAccount = async (account: Omit<BankAccount, 'id'>) => {
@@ -96,11 +113,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!firestore) return;
     const batch = writeBatch(firestore);
     students.forEach(student => {
-      const studentRef = doc(firestore, 'students', student.id);
-      const currentGradeIndex = gradeProgression.indexOf(student.grade);
-      const nextGradeIndex = currentGradeIndex + 1;
-      const newGrade = nextGradeIndex < gradeProgression.length ? gradeProgression[nextGradeIndex] : student.grade;
-      batch.update(studentRef, { grade: newGrade });
+      if (student.status === 'active') {
+        const studentRef = doc(firestore, 'students', student.id);
+        const currentGradeIndex = gradeProgression.indexOf(student.grade);
+        const nextGradeIndex = currentGradeIndex + 1;
+        if (nextGradeIndex < gradeProgression.length) {
+            batch.update(studentRef, { grade: gradeProgression[nextGradeIndex] });
+        } else {
+            batch.update(studentRef, { status: 'graduated' });
+        }
+      }
     });
     batch.commit()
         .catch((err) => {
@@ -112,13 +134,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!firestore) return;
     const batch = writeBatch(firestore);
     students.forEach(student => {
-      const studentRef = doc(firestore, 'students', student.id);
-      const updateData = {
-        tuitionOwing: student.tuitionOwing + values.tuition,
-        levyOwing: student.levyOwing + values.levy,
-        buildingFundOwing: student.buildingFundOwing + values.buildingFund,
-      };
-      batch.update(studentRef, updateData);
+        if(student.status === 'active') {
+          const studentRef = doc(firestore, 'students', student.id);
+          const updateData = {
+            tuitionOwing: student.tuitionOwing + values.tuition,
+            levyOwing: student.levyOwing + values.levy,
+            buildingFundOwing: student.buildingFundOwing + values.buildingFund,
+          };
+          batch.update(studentRef, updateData);
+        }
     });
     batch.commit()
         .catch((err) => {
@@ -146,14 +170,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const contextValue = useMemo(() => ({
     students,
-    addStudent: async (student) => { 
-        if (firestore) {
-            const ref = collection(firestore, 'students');
-            addDoc(ref, student).catch(err => {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'create', requestResourceData: student }));
-            })
-        }
-    },
+    addStudent,
     updateStudent,
     updateStudentBalances,
     bulkUpgradeGrades,
@@ -174,7 +191,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     exchangeRate: exchangeRate ?? { rate: 1, lastUpdated: '' },
     setExchangeRate,
     markPaymentsAsDeposited,
-  }), [students, updateStudent, payments, bankAccounts, transactions, exchangeRate, firestore, addBankAccount, addTransaction]);
+  }), [students, updateStudent, addStudent, payments, bankAccounts, transactions, exchangeRate, firestore, addBankAccount, addTransaction, bulkUpgradeGrades, bulkBillStudents]);
 
   return (
     <AppContext.Provider value={contextValue}>

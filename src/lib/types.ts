@@ -6,6 +6,8 @@ export type FeeType = 'tuition' | 'levy' | 'building' | 'exam';
 
 export type PaymentMethod = 'Cash' | 'Bank Transfer' | 'Ecocash';
 
+export type StudentStatus = 'active' | 'graduated' | 'transferred';
+
 export type Student = {
   id: string;
   name: string;
@@ -15,6 +17,7 @@ export type Student = {
   guardianName: string;
   guardianPhone: string;
   address: string;
+  status: StudentStatus;
   tuitionOwing: number;
   levyOwing: number;
   buildingFundOwing: number;

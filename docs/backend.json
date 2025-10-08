@@ -12,11 +12,12 @@
         "guardianName": { "type": "string" },
         "guardianPhone": { "type": "string" },
         "address": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "graduated", "transferred"] },
         "tuitionOwing": { "type": "number" },
         "levyOwing": { "type": "number" },
         "buildingFundOwing": { "type": "number" }
       },
-      "required": ["name", "grade", "dateOfBirth", "gender", "guardianName", "guardianPhone", "tuitionOwing", "levyOwing", "buildingFundOwing"]
+      "required": ["name", "grade", "dateOfBirth", "gender", "guardianName", "guardianPhone", "address", "status", "tuitionOwing", "levyOwing", "buildingFundOwing"]
     },
     "bankAccount": {
       "title": "Bank Account",

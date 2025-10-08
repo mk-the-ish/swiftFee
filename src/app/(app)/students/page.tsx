@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -58,6 +58,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 const studentFormSchema = z.object({
   name: z.string().min(2, { message: 'Name is too short.' }),
@@ -67,34 +68,64 @@ const studentFormSchema = z.object({
   guardianName: z.string().min(2, { message: "Guardian's name is too short." }),
   guardianPhone: z.string().min(5, { message: "Guardian's phone is too short." }),
   address: z.string().min(5, { message: 'Address is too short.' }),
+  status: z.enum(['active', 'graduated', 'transferred']),
 });
 
-function AddStudentForm({ setOpen }: { setOpen: (open: boolean) => void }) {
-  const { addStudent } = useAppContext();
+export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boolean) => void, studentToEdit?: Student }) {
+  const { addStudent, updateStudent } = useAppContext();
   const { toast } = useToast();
+  
+  const isEditMode = !!studentToEdit;
+
   const form = useForm<z.infer<typeof studentFormSchema>>({
     resolver: zodResolver(studentFormSchema),
-    defaultValues: {
+    defaultValues: isEditMode ? {
+        ...studentToEdit,
+        dateOfBirth: new Date(studentToEdit.dateOfBirth),
+    } : {
       name: '',
       guardianName: '',
       guardianPhone: '',
       address: '',
+      status: 'active',
     }
   });
 
+  useEffect(() => {
+    if (isEditMode && studentToEdit) {
+      form.reset({
+        ...studentToEdit,
+        dateOfBirth: new Date(studentToEdit.dateOfBirth),
+      });
+    }
+  }, [studentToEdit, isEditMode, form]);
+
   async function onSubmit(values: z.infer<typeof studentFormSchema>) {
-    const newStudent: Omit<Student, 'id'> = {
-      ...values,
-      dateOfBirth: values.dateOfBirth.toISOString(),
-      tuitionOwing: 0,
-      levyOwing: 0,
-      buildingFundOwing: 0,
-    };
-    await addStudent(newStudent);
-    toast({
-      title: 'Student Added',
-      description: `${values.name} has been added to the system.`,
-    });
+    if (isEditMode && studentToEdit) {
+        await updateStudent(studentToEdit.id, {
+            ...values,
+            dateOfBirth: values.dateOfBirth.toISOString()
+        });
+        toast({
+            title: 'Student Updated',
+            description: `${values.name} has been updated.`,
+        });
+
+    } else {
+        const newStudent: Omit<Student, 'id'> = {
+          ...values,
+          dateOfBirth: values.dateOfBirth.toISOString(),
+          tuitionOwing: 0,
+          levyOwing: 0,
+          buildingFundOwing: 0,
+        };
+        await addStudent(newStudent);
+        toast({
+          title: 'Student Added',
+          description: `${values.name} has been added to the system.`,
+        });
+    }
+
     form.reset();
     setOpen(false);
   }
@@ -102,94 +133,43 @@ function AddStudentForm({ setOpen }: { setOpen: (open: boolean) => void }) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Full Name</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="grade"
-          render={({ field }) => (
+        <FormField control={form.control} name="name" render={({ field }) => (
+            <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+        )}/>
+        <FormField control={form.control} name="grade" render={({ field }) => (
             <FormItem>
               <FormLabel>Grade</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a grade" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {gradeProgression.map(grade => (
-                    <SelectItem key={grade} value={grade}>{grade}</SelectItem>
-                  ))}
-                </SelectContent>
+                <FormControl><SelectTrigger><SelectValue placeholder="Select a grade" /></SelectTrigger></FormControl>
+                <SelectContent>{gradeProgression.map(grade => (<SelectItem key={grade} value={grade}>{grade}</SelectItem>))}</SelectContent>
               </Select>
               <FormMessage />
             </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="dateOfBirth"
-          render={({ field }) => (
+        )}/>
+        <FormField control={form.control} name="dateOfBirth" render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Date of Birth</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
-                    <Button
-                      variant={'outline'}
-                      className={cn(
-                        'w-full pl-3 text-left font-normal',
-                        !field.value && 'text-muted-foreground'
-                      )}
-                    >
-                      {field.value ? (
-                        format(field.value, 'PPP')
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
+                    <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal',!field.value && 'text-muted-foreground')}>
+                      {field.value ? (format(field.value, 'PPP')) : (<span>Pick a date</span>)}
                       <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    disabled={(date) =>
-                      date > new Date() || date < new Date('1930-01-01')
-                    }
-                    initialFocus
-                  />
+                  <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date('1930-01-01')} initialFocus/>
                 </PopoverContent>
               </Popover>
               <FormMessage />
             </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="gender"
-          render={({ field }) => (
+        )}/>
+        <FormField control={form.control} name="gender" render={({ field }) => (
              <FormItem>
               <FormLabel>Gender</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a gender" />
-                  </SelectTrigger>
-                </FormControl>
+                <FormControl><SelectTrigger><SelectValue placeholder="Select a gender" /></SelectTrigger></FormControl>
                 <SelectContent>
                   <SelectItem value="Male">Male</SelectItem>
                   <SelectItem value="Female">Female</SelectItem>
@@ -197,52 +177,33 @@ function AddStudentForm({ setOpen }: { setOpen: (open: boolean) => void }) {
               </Select>
               <FormMessage />
             </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="guardianName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Guardian's Name</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
+        )}/>
+        <FormField control={form.control} name="status" render={({ field }) => (
+             <FormItem>
+              <FormLabel>Status</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="graduated">Graduated</SelectItem>
+                  <SelectItem value="transferred">Transferred</SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="guardianPhone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Guardian's Phone</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="address"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Address</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        )}/>
+        <FormField control={form.control} name="guardianName" render={({ field }) => (
+            <FormItem><FormLabel>Guardian's Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+        )}/>
+        <FormField control={form.control} name="guardianPhone" render={({ field }) => (
+            <FormItem><FormLabel>Guardian's Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+        )}/>
+        <FormField control={form.control} name="address" render={({ field }) => (
+            <FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+        )}/>
         <DialogFooter className="mt-4">
-            <DialogClose asChild>
-                <Button type="button" variant="secondary">Cancel</Button>
-            </DialogClose>
-            <Button type="submit">Add Student</Button>
+            <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+            <Button type="submit">{isEditMode ? 'Update Student' : 'Add Student'}</Button>
         </DialogFooter>
       </form>
     </Form>
@@ -313,8 +274,9 @@ export default function StudentsPage() {
     }
 
     return sortableStudents.filter((student) =>
-      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.grade.toLowerCase().includes(searchTerm.toLowerCase())
+      (student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.grade.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      student.status === 'active'
     );
   }, [students, searchTerm, sortConfig]);
 
@@ -341,7 +303,7 @@ export default function StudentsPage() {
         <div>
             <CardTitle>Students</CardTitle>
             <CardDescription>
-            A list of all students and their outstanding fee balances.
+            A list of all active students and their outstanding fee balances.
             </CardDescription>
         </div>
         <AddStudentDialog />
@@ -364,6 +326,7 @@ export default function StudentsPage() {
               <SortableHeader sortKey="levyOwing">Levy Owing</SortableHeader>
               <SortableHeader sortKey="buildingFundOwing">Building Fund</SortableHeader>
               <SortableHeader sortKey="totalOwing">Total Owing</SortableHeader>
+              <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -379,11 +342,12 @@ export default function StudentsPage() {
                 <TableCell>{formatCurrency(student.levyOwing)}</TableCell>
                 <TableCell>{formatCurrency(student.buildingFundOwing)}</TableCell>
                 <TableCell className="font-semibold">{formatCurrency(student.totalOwing)}</TableCell>
+                <TableCell><Badge variant={student.status === 'active' ? 'default' : 'secondary'} className="capitalize">{student.status}</Badge></TableCell>
               </TableRow>
             ))}
              {filteredAndSortedStudents.length === 0 && (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24">No students found.</TableCell>
+                    <TableCell colSpan={7} className="text-center h-24">No students found.</TableCell>
                 </TableRow>
             )}
           </TableBody>
