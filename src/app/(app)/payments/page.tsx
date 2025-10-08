@@ -166,7 +166,7 @@ export default function PaymentsPage() {
     const amountInUSD = values.currency === 'ZWG' ? values.amount / rate : values.amount;
 
     // Create new payment record
-    const newPayment: Omit<Payment, 'id'> = {
+    const newPayment: Omit<Payment, 'id' | 'bankAccountId'> & { bankAccountId?: string } = {
       studentId: student.id,
       studentName: student.name,
       feeType: values.feeType,
@@ -175,11 +175,15 @@ export default function PaymentsPage() {
       currency: values.currency,
       amountInUSD,
       date: new Date().toISOString(),
-      bankAccountId: values.bankAccountId,
       receiptNumber: values.receiptNumber,
       deposited: values.paymentMethod !== 'Cash', // Cash payments are deposited later
     };
-    await addPayment(newPayment);
+
+    if (values.bankAccountId) {
+      newPayment.bankAccountId = values.bankAccountId;
+    }
+
+    await addPayment(newPayment as Omit<Payment, 'id'>);
     
     // If not cash, create transaction immediately
     if(values.paymentMethod !== 'Cash' && values.bankAccountId) {
