@@ -1,100 +1,106 @@
-/**
- * @file Firestore Security Rules
- * @description This ruleset defines access control for the school management application.
- *
- * Core Philosophy:
- *  - Strict access control based on user authentication and role-based authorization.
- *  - Public read access to certain settings.
- *  - Owner-only write access for all data.
- *
- * Data Structure:
- *  - /students/{studentId}: Student records.
- *  - /bankAccounts/{accountId}: School bank account information.
- *  - /payments/{paymentId}: Payment records.
- *  - /transactions/{transactionId}: Bank transaction records.
- *  - /settings/exchangeRate: Exchange rate settings.
- *
- * Key Security Decisions:
- *  - Users must be authenticated to perform any write operation.
- *  - Listing of students, bank accounts, payments, and transactions is denied to client.
- *  - Exchange rate is publicly readable.
- *
- * Denormalization for Authorization:
- *  - None (all authorization is based on authenticated user and/or public read access).
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants read access to the exchange rate and denies all write operations.
-     * @path /settings/exchangeRate
-     * @allow (get, list): if true
-     * @deny (create, update, delete): Always
-     * @principle Allows public read access to the exchange rate.
-     */
-    match /settings/exchangeRate {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
-
-    /**
-     * @description Secure student records.
+     * @description Enforces administrator-only access for managing student data.
      * @path /students/{studentId}
-     * @deny (get, list, create, update, delete): Always
-     * @principle No access is allowed to this data via security rules, it is likely controlled by Cloud Functions.
+     * @allow (create, update, delete) - As an admin, create a new student record.
+     * @deny (create, update, delete) - As a non-admin, attempt to create a student record.
+     * @allow (get) - As an admin, fetch a specific student's data.
+     * @deny (list) - Listing all students is not permitted by anyone.
+     * @principle Restricts student data management to authorized personnel.
      */
     match /students/{studentId} {
-      allow get: if false;
+      allow get: if isAdmin();
       allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     /**
-     * @description Secure bank account records.
+     * @description Enforces administrator-only access for managing bank account data.
      * @path /bankAccounts/{accountId}
-     * @deny (get, list, create, update, delete): Always
-     * @principle No access is allowed to this data via security rules, it is likely controlled by Cloud Functions.
+     * @allow (create, update, delete) - As an admin, create a new bank account record.
+     * @deny (create, update, delete) - As a non-admin, attempt to create a bank account record.
+     * @allow (get) - As an admin, fetch a specific bank account's data.
+     * @deny (list) - Listing all bank accounts is not permitted by anyone.
+     * @principle Restricts bank account data management to authorized personnel.
      */
     match /bankAccounts/{accountId} {
-      allow get: if false;
+      allow get: if isAdmin();
       allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     /**
-     * @description Secure payment records.
+     * @description Enforces administrator-only access for managing payment records.
      * @path /payments/{paymentId}
-     * @deny (get, list, create, update, delete): Always
-     * @principle No access is allowed to this data via security rules, it is likely controlled by Cloud Functions.
+     * @allow (create, update, delete) - As an admin, create a new payment record.
+     * @deny (create, update, delete) - As a non-admin, attempt to create a payment record.
+     * @allow (get) - As an admin, fetch a specific payment's data.
+     * @deny (list) - Listing all payments is not permitted due to the reported error and implicit assumption in the reasoning section of docs/backend.json.
+     * @principle Restricts payment data management to authorized personnel.
      */
     match /payments/{paymentId} {
-      allow get: if false;
+      allow get: if isAdmin();
       allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     /**
-     * @description Secure transaction records.
+     * @description Enforces administrator-only access for managing transaction records.
      * @path /transactions/{transactionId}
-     * @deny (get, list, create, update, delete): Always
-     * @principle No access is allowed to this data via security rules, it is likely controlled by Cloud Functions.
+     * @allow (create, update, delete) - As an admin, create a new transaction record.
+     * @deny (create, update, delete) - As a non-admin, attempt to create a transaction record.
+     * @allow (get) - As an admin, fetch a specific transaction's data.
+     * @deny (list) - Listing all transactions is not permitted by anyone.
+     * @principle Restricts transaction data management to authorized personnel.
      */
     match /transactions/{transactionId} {
-      allow get: if false;
+      allow get: if isAdmin();
       allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Allows public read access to the exchange rate while restricting write access to administrators.
+     * @path /settings/exchangeRate
+     * @allow (get, list) - Any user can retrieve the exchange rate.
+     * @allow (create, update, delete) - Only administrators can modify the exchange rate.
+     * @deny (create, update, delete) - A non-administrator attempts to modify the exchange rate.
+     * @principle Balances public accessibility with administrative control for sensitive settings.
+     */
+    match /settings/exchangeRate {
+      allow get, list: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Helper functions
+
+    /**
+     * @description Checks if the user is an administrator.  This requires a custom claim on the user's JWT.
+     * @return {boolean} True if the user has the 'admin' claim set to true.
+     */
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    /**
+     * @description Checks if the user is signed in.
+     * @return {boolean} True if the user is signed in.
+     */
+    function isSignedIn() {
+      return request.auth != null;
     }
   }
 }
