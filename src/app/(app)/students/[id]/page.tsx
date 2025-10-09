@@ -220,6 +220,8 @@ export default function StudentProfilePage() {
   
   const totalOwing = student.tuitionOwing + student.levyOwing + student.buildingFundOwing;
 
+  const isValidDate = student.dateOfBirth && !isNaN(new Date(student.dateOfBirth).getTime());
+
   return (
     <div className="grid gap-8 md:grid-cols-3">
         <div className="md:col-span-1">
@@ -233,7 +235,11 @@ export default function StudentProfilePage() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <InfoCard icon={User} label="Gender" value={student.gender} />
-                    <InfoCard icon={Cake} label="Date of Birth" value={format(new Date(student.dateOfBirth), "MMMM dd, yyyy")} />
+                    <InfoCard 
+                        icon={Cake} 
+                        label="Date of Birth" 
+                        value={isValidDate ? format(new Date(student.dateOfBirth), "MMMM dd, yyyy") : 'N/A'} 
+                    />
                     <InfoCard icon={User} label="Guardian" value={`${student.guardianName}`} />
                     <InfoCard icon={Phone} label="Guardian's Phone" value={student.guardianPhone} />
                     <InfoCard icon={Home} label="Address" value={student.address} />
