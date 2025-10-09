@@ -77,11 +77,17 @@ export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boo
   
   const isEditMode = !!studentToEdit;
 
+  const getInitialDate = (dateString?: string) => {
+    if (!dateString) return undefined;
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? undefined : date;
+  }
+
   const form = useForm<z.infer<typeof studentFormSchema>>({
     resolver: zodResolver(studentFormSchema),
     defaultValues: isEditMode ? {
         ...studentToEdit,
-        dateOfBirth: new Date(studentToEdit.dateOfBirth),
+        dateOfBirth: getInitialDate(studentToEdit.dateOfBirth),
     } : {
       name: '',
       grade: 'ECD A',
@@ -97,7 +103,7 @@ export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boo
     if (isEditMode && studentToEdit) {
       form.reset({
         ...studentToEdit,
-        dateOfBirth: new Date(studentToEdit.dateOfBirth),
+        dateOfBirth: getInitialDate(studentToEdit.dateOfBirth),
       });
     }
   }, [studentToEdit, isEditMode, form]);
