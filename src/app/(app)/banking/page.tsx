@@ -176,9 +176,9 @@ function DailyDeposits() {
     const { toast } = useToast();
 
     const cashByAccount = React.useMemo(() => {
-        const cashPaymentsToDeposit = payments.filter(
-            (p) => p.paymentMethod === 'Cash' && !p.deposited && p.depositAccountId
-        );
+        const cashPaymentsToDeposit = payments
+            .filter((p) => p.paymentMethod === 'Cash' && !p.deposited && p.depositAccountId)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         const grouped = cashPaymentsToDeposit.reduce((acc, p) => {
             const accountId = p.depositAccountId!;

@@ -163,6 +163,10 @@ export default function PaymentsPage() {
   
   const paymentMethod = form.watch('paymentMethod');
 
+  const sortedPayments = useMemo(() => {
+    return [...payments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [payments]);
+
 
   async function onSubmit(values: z.infer<typeof paymentFormSchema>) {
     const student = students.find((s) => s.id === values.studentId);
@@ -186,8 +190,7 @@ export default function PaymentsPage() {
       date: new Date().toISOString(),
       receiptNumber: values.receiptNumber,
       deposited: values.paymentMethod !== 'Cash', // Cash payments are deposited later
-      ...(values.paymentMethod !== 'Cash' && { bankAccountId: values.bankAccountId }),
-      ...(values.paymentMethod === 'Cash' && { depositAccountId: values.depositAccountId }),
+      ...(values.paymentMethod === 'Cash' ? { depositAccountId: values.depositAccountId } : { bankAccountId: values.bankAccountId }),
     };
 
     const paymentRef = await addPayment(newPayment);
@@ -455,7 +458,7 @@ export default function PaymentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {payments.slice(0, 10).map((p) => (
+                {sortedPayments.slice(0, 10).map((p) => (
                   <TableRow key={p.id}>
                     <TableCell>
                       <div className="font-medium">{p.studentName}</div>
