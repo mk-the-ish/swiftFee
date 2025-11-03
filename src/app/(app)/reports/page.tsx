@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -28,16 +29,26 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Printer } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { useAppContext } from '@/context/app-context';
 import { useToast } from '@/hooks/use-toast';
 import { generateFinancialStatementAction } from './actions';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { gradeProgression, type Student, type Grade } from '@/lib/types';
 
 const reportFormSchema = z.object({
   feeType: z.enum(['all', 'tuition', 'levy', 'building', 'exam']),
@@ -48,60 +59,218 @@ const reportFormSchema = z.object({
   }),
 });
 
-export default function ReportsPage() {
-  const { bankAccounts } = useAppContext();
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const [statement, setStatement] = useState('');
+function handlePrint(printAreaId: string, title: string) {
+    const printContent = document.getElementById(printAreaId);
+    const windowUrl = 'about:blank';
+    const uniqueName = new Date().getTime();
+    const windowName = 'Print' + uniqueName;
+    const printWindow = window.open(windowUrl, windowName, 'left=50000,top=50000,width=0,height=0');
 
-  const form = useForm<z.infer<typeof reportFormSchema>>({
-    resolver: zodResolver(reportFormSchema),
-    defaultValues: {
-      feeType: 'all',
-      dateRange: { from: undefined, to: undefined },
-    },
-  });
-
-  async function onSubmit(values: z.infer<typeof reportFormSchema>) {
-    setIsLoading(true);
-    setStatement('');
-
-    let criteria = `Generate a financial statement for ${values.feeType} fees.`;
-    if (values.dateRange.from && values.dateRange.to) {
-        criteria += ` From ${format(values.dateRange.from, 'PPP')} to ${format(values.dateRange.to, 'PPP')}.`;
+    if (printWindow && printContent) {
+        printWindow.document.write(`<html><head><title>${title}</title>`);
+        printWindow.document.write('<link rel="stylesheet" href="https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css" />');
+        printWindow.document.write('<style>body { font-family: sans-serif; }</style>');
+        printWindow.document.write('</head><body class="p-8">');
+        printWindow.document.write(printContent.innerHTML);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 1000);
     }
-    if (values.bankAccountId) {
-        const bank = bankAccounts.find(b => b.id === values.bankAccountId);
-        if(bank) {
-            criteria += ` Deposited into the ${bank.bankName} (${bank.accountNumber}) account.`;
-        }
-    }
+}
+
+
+function DebtorsList() {
+    const { students } = useAppContext();
+
+    const debtors = useMemo(() => {
+        return students
+            .map(s => ({...s, totalOwing: s.tuitionOwing + s.levyOwing + s.buildingFundOwing}))
+            .filter(s => s.totalOwing > 0)
+            .sort((a,b) => b.totalOwing - a.totalOwing);
+    }, [students]);
+
+    const totalSchoolDebt = useMemo(() => {
+        return debtors.reduce((acc, student) => acc + student.totalOwing, 0);
+    }, [debtors]);
+
+    return (
+        <Card>
+            <CardHeader className="flex-row items-start justify-between">
+                <div>
+                    <CardTitle>Debtors List</CardTitle>
+                    <CardDescription>A list of all students with outstanding balances.</CardDescription>
+                </div>
+                <Button variant="outline" onClick={() => handlePrint('debtors-list-print', 'Debtors List')}>
+                    <Printer className="mr-2 h-4 w-4" />
+                    Print List
+                </Button>
+            </CardHeader>
+            <CardContent>
+                <div id="debtors-list-print">
+                    <h1 className="text-2xl font-bold mb-4">Debtors List</h1>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Student Name</TableHead>
+                                <TableHead>Grade</TableHead>
+                                <TableHead className="text-right">Tuition Owing</TableHead>
+                                <TableHead className="text-right">Levy Owing</TableHead>
+                                <TableHead className="text-right">Building Fund</TableHead>
+                                <TableHead className="text-right font-bold">Total Owing</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {debtors.map(student => (
+                                <TableRow key={student.id}>
+                                    <TableCell>{student.name}</TableCell>
+                                    <TableCell>{student.grade}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(student.tuitionOwing)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(student.levyOwing)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(student.buildingFundOwing)}</TableCell>
+                                    <TableCell className="text-right font-bold">{formatCurrency(student.totalOwing)}</TableCell>
+                                </TableRow>
+                            ))}
+                            {debtors.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center h-24">No students have outstanding balances.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                     <div className="mt-8 text-right">
+                        <h2 className="text-xl font-bold">Total Owed by Whole School: {formatCurrency(totalSchoolDebt)}</h2>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
+function ClassLists() {
+    const { students } = useAppContext();
+    const [selectedGrade, setSelectedGrade] = useState<Grade | 'all'>('ECD A');
+
+    const classList = useMemo(() => {
+        if (selectedGrade === 'all') return [];
+        return students
+            .filter(s => s.grade === selectedGrade)
+            .sort((a,b) => a.name.localeCompare(b.name));
+    }, [students, selectedGrade]);
     
-    const result = await generateFinancialStatementAction({ criteria });
+    return (
+        <Card>
+            <CardHeader>
+                 <CardTitle>Class Lists</CardTitle>
+                 <CardDescription>View and print a list of students for any grade.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                 <div className="flex items-center gap-4 mb-6">
+                    <Select onValueChange={(value) => setSelectedGrade(value as Grade)} value={selectedGrade}>
+                        <SelectTrigger className="w-[280px]">
+                            <SelectValue placeholder="Select a grade to view the class list" />
+                        </SelectTrigger>
+                        <SelectContent>
+                             {gradeProgression.map(grade => (
+                                <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button variant="outline" onClick={() => handlePrint('class-list-print', `Class List - ${selectedGrade}`)} disabled={selectedGrade === 'all' || classList.length === 0}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print List
+                    </Button>
+                </div>
+                
+                <div id="class-list-print">
+                    <h1 className="text-2xl font-bold mb-4">Class List: {selectedGrade}</h1>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Student Name</TableHead>
+                                <TableHead>Gender</TableHead>
+                                <TableHead>Date of Birth</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {classList.map(student => (
+                                <TableRow key={student.id}>
+                                    <TableCell>{student.name}</TableCell>
+                                    <TableCell>{student.gender}</TableCell>
+                                    <TableCell>{student.dateOfBirth ? format(new Date(student.dateOfBirth), "dd MMMM, yyyy") : 'N/A'}</TableCell>
+                                </TableRow>
+                            ))}
+                            {classList.length === 0 && selectedGrade !== 'all' && (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="text-center h-24">No students found in {selectedGrade}.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
 
-    if (result.error) {
-        toast({
-            variant: 'destructive',
-            title: 'Error Generating Statement',
-            description: result.error,
-        });
-    } else if (result.statement) {
-        setStatement(result.statement);
-        toast({
-            title: 'Statement Generated',
-            description: 'The financial statement has been successfully generated.',
-        });
+            </CardContent>
+        </Card>
+    );
+}
+
+
+function AiReports() {
+    const { bankAccounts } = useAppContext();
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
+    const [statement, setStatement] = useState('');
+
+    const form = useForm<z.infer<typeof reportFormSchema>>({
+        resolver: zodResolver(reportFormSchema),
+        defaultValues: {
+        feeType: 'all',
+        dateRange: { from: undefined, to: undefined },
+        },
+    });
+
+    async function onSubmit(values: z.infer<typeof reportFormSchema>) {
+        setIsLoading(true);
+        setStatement('');
+
+        let criteria = `Generate a financial statement for ${values.feeType} fees.`;
+        if (values.dateRange.from && values.dateRange.to) {
+            criteria += ` From ${format(values.dateRange.from, 'PPP')} to ${format(values.dateRange.to, 'PPP')}.`;
+        }
+        if (values.bankAccountId) {
+            const bank = bankAccounts.find(b => b.id === values.bankAccountId);
+            if(bank) {
+                criteria += ` Deposited into the ${bank.bankName} (${bank.accountNumber}) account.`;
+            }
+        }
+        
+        const result = await generateFinancialStatementAction({ criteria });
+
+        if (result.error) {
+            toast({
+                variant: 'destructive',
+                title: 'Error Generating Statement',
+                description: result.error,
+            });
+        } else if (result.statement) {
+            setStatement(result.statement);
+            toast({
+                title: 'Statement Generated',
+                description: 'The financial statement has been successfully generated.',
+            });
+        }
+
+        setIsLoading(false);
     }
-
-    setIsLoading(false);
-  }
-
   return (
     <div className="grid gap-8 md:grid-cols-3">
       <div className="md:col-span-1">
         <Card>
           <CardHeader>
-            <CardTitle>Generate Statement</CardTitle>
+            <CardTitle>Generate AI Statement</CardTitle>
             <CardDescription>
               Use AI to generate a financial statement based on your criteria.
             </CardDescription>
@@ -240,4 +409,26 @@ export default function ReportsPage() {
       </div>
     </div>
   );
+}
+
+
+export default function ReportsPage() {
+    return (
+        <Tabs defaultValue="debtors" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="debtors">Debtors List</TabsTrigger>
+                <TabsTrigger value="class_lists">Class Lists</TabsTrigger>
+                <TabsTrigger value="ai_reports">AI Statements</TabsTrigger>
+            </TabsList>
+            <TabsContent value="debtors" className="mt-6">
+                <DebtorsList />
+            </TabsContent>
+            <TabsContent value="class_lists" className="mt-6">
+                <ClassLists />
+            </TabsContent>
+            <TabsContent value="ai_reports" className="mt-6">
+                <AiReports />
+            </TabsContent>
+        </Tabs>
+    )
 }
