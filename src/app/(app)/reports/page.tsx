@@ -196,13 +196,16 @@ function ClassLists() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {classList.map(student => (
-                                <TableRow key={student.id}>
-                                    <TableCell>{student.name}</TableCell>
-                                    <TableCell>{student.gender}</TableCell>
-                                    <TableCell>{student.dateOfBirth ? format(new Date(student.dateOfBirth), "dd MMMM, yyyy") : 'N/A'}</TableCell>
-                                </TableRow>
-                            ))}
+                            {classList.map(student => {
+                                const isValidDate = student.dateOfBirth && !isNaN(new Date(student.dateOfBirth).getTime());
+                                return (
+                                    <TableRow key={student.id}>
+                                        <TableCell>{student.name}</TableCell>
+                                        <TableCell>{student.gender}</TableCell>
+                                        <TableCell>{isValidDate ? format(new Date(student.dateOfBirth), "dd MMMM, yyyy") : 'N/A'}</TableCell>
+                                    </TableRow>
+                                )
+                            })}
                             {classList.length === 0 && selectedGrade !== 'all' && (
                                 <TableRow>
                                     <TableCell colSpan={3} className="text-center h-24">No students found in {selectedGrade}.</TableCell>
