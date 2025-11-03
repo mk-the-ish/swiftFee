@@ -190,7 +190,10 @@ export default function PaymentsPage() {
       date: new Date().toISOString(),
       receiptNumber: values.receiptNumber,
       deposited: values.paymentMethod !== 'Cash', // Cash payments are deposited later
-      ...(values.paymentMethod === 'Cash' ? { depositAccountId: values.depositAccountId } : { bankAccountId: values.bankAccountId }),
+      ...(values.paymentMethod === 'Cash' 
+            ? { depositAccountId: values.depositAccountId }
+            : { bankAccountId: values.bankAccountId }
+      ),
     };
 
     const paymentRef = await addPayment(newPayment);
@@ -205,7 +208,7 @@ export default function PaymentsPage() {
                 type: 'incoming',
                 description: `Fee payment from ${student.name} (Receipt: ${values.receiptNumber})`,
                 amount: amountInUSD,
-                currency: values.currency,
+                currency: bankAccount.currency,
                 originalAmount: values.amount,
                 relatedPaymentId: paymentRef?.id
             };
@@ -297,7 +300,7 @@ export default function PaymentsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Fee Type</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value ?? ''}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a fee type" />
@@ -320,7 +323,7 @@ export default function PaymentsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Payment Method</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value ?? ''}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a payment method" />
@@ -386,7 +389,7 @@ export default function PaymentsPage() {
                         render={({ field }) => (
                         <FormItem>
                             <FormLabel>Deposit to Account</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value ?? ''}>
                             <FormControl>
                                 <SelectTrigger>
                                 <SelectValue placeholder="Select account for end-of-day deposit" />
@@ -413,7 +416,7 @@ export default function PaymentsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Paid into Bank Account</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value ?? ''}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select a bank account" />
