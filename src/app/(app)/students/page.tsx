@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/context/app-context';
 import { formatCurrency } from '@/lib/utils';
-import type { Student } from '@/lib/types';
+import type { Student, StudentStatus } from '@/lib/types';
 import { ArrowUpDown, PlusCircle } from 'lucide-react';
 import {
   Dialog,
@@ -255,6 +255,8 @@ export default function StudentsPage() {
   const { students } = useAppContext();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
+  const [gradeFilter, setGradeFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<StudentStatus>('active');
 
   const filteredAndSortedStudents = useMemo(() => {
     let sortableStudents = [...students].map(student => ({
@@ -289,12 +291,14 @@ export default function StudentsPage() {
       });
     }
 
-    return sortableStudents.filter((student) =>
-      (student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.grade.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      student.status === 'active'
-    );
-  }, [students, searchTerm, sortConfig]);
+    return sortableStudents.filter((student) => {
+        const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesGrade = gradeFilter === 'all' || student.grade === gradeFilter;
+        const matchesStatus = student.status === statusFilter;
+        return matchesSearch && matchesGrade && matchesStatus;
+    });
+
+  }, [students, searchTerm, sortConfig, gradeFilter, statusFilter]);
 
   const requestSort = (key: SortKey) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -319,19 +323,40 @@ export default function StudentsPage() {
         <div>
             <CardTitle>Students</CardTitle>
             <CardDescription>
-            A list of all active students and their outstanding fee balances.
+            A list of all students in the system.
             </CardDescription>
         </div>
         <AddStudentDialog />
       </CardHeader>
       <CardContent>
-        <div className="pb-4">
+        <div className="flex items-center gap-4 pb-4">
             <Input 
-                placeholder="Search by name or grade..."
+                placeholder="Search by name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="max-w-sm"
             />
+            <Select value={gradeFilter} onValueChange={setGradeFilter}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by grade" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Grades</SelectItem>
+                    {gradeProgression.map(grade => (
+                        <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StudentStatus)}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="graduated">Graduated</SelectItem>
+                    <SelectItem value="transferred">Transferred</SelectItem>
+                </SelectContent>
+            </Select>
         </div>
         <Table>
           <TableHeader>
