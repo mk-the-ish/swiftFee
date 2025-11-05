@@ -1,5 +1,7 @@
 export type Grade = 'ECD A' | 'ECD B' | 'Grade 1' | 'Grade 2' | 'Grade 3' | 'Grade 4' | 'Grade 5' | 'Grade 6' | 'Grade 7';
 
+export type Class = 'blue' | 'brown' | 'green' |'maroon'|'orange'|'pink'|'purple'|'red'|'white'|'yellow';
+
 export const gradeProgression: Grade[] = ['ECD A', 'ECD B', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7'];
 
 export type FeeType = 'tuition' | 'levy' | 'building' | 'exam';
@@ -12,6 +14,7 @@ export type Student = {
   id: string;
   name: string;
   grade: Grade;
+  class: Class;
   dateOfBirth: string;
   gender: 'Male' | 'Female';
   guardianName: string;

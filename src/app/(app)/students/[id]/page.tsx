@@ -229,7 +229,7 @@ export default function StudentProfilePage() {
                 <CardHeader className="flex flex-row justify-between items-start">
                     <div>
                         <CardTitle className="flex items-center gap-2">{student.name} <Badge variant={student.status === 'active' ? 'default' : 'secondary'} className="capitalize">{student.status}</Badge></CardTitle>
-                        <CardDescription>{student.grade} - Student ID: {student.id}</CardDescription>
+                        <CardDescription>{student.grade}{student.class} - Student ID: {student.id}</CardDescription>
                     </div>
                     <EditStudentDialog student={student} />
                 </CardHeader>

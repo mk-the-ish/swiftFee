@@ -4,11 +4,11 @@ import type { Student, BankAccount } from './types';
 // or to seed the database during development.
 
 export const STUDENTS: Student[] = [
-  { id: 'S001', name: 'John Doe', grade: 'Grade 5', dateOfBirth: '2014-05-10', gender: 'Male', guardianName: 'Richard Doe', guardianPhone: '555-1234', address: '123 Main St, Harare', tuitionOwing: 250, levyOwing: 50, buildingFundOwing: 100 },
-  { id: 'S002', name: 'Jane Smith', grade: 'Grade 7', dateOfBirth: '2012-09-22', gender: 'Female', guardianName: 'Sarah Smith', guardianPhone: '555-5678', address: '456 Oak Ave, Bulawayo', tuitionOwing: 0, levyOwing: 25, buildingFundOwing: 0 },
-  { id: 'S003', name: 'Peter Jones', grade: 'ECD A', dateOfBirth: '2019-02-15', gender: 'Male', guardianName: 'Emily Jones', guardianPhone: '555-9012', address: '789 Pine Ln, Harare', tuitionOwing: 150, levyOwing: 50, buildingFundOwing: 75 },
-  { id: 'S004', name: 'Mary Williams', grade: 'Grade 1', dateOfBirth: '2018-11-30', gender: 'Female', guardianName: 'David Williams', guardianPhone: '555-3456', address: '101 Maple Dr, Mutare', tuitionOwing: 250, levyOwing: 0, buildingFundOwing: 100 },
-  { id: 'S005', name: 'David Brown', grade: 'Grade 3', dateOfBirth: '2016-07-19', gender: 'Male', guardianName: 'Grace Brown', guardianPhone: '555-7890', address: '212 Cedar Ct, Gweru', tuitionOwing: 100, levyOwing: 10, buildingFundOwing: 50 },
+  { id: 'S001', name: 'John Doe', grade: 'Grade 5',class: 'yellow', dateOfBirth: '2014-05-10', gender: 'Male', guardianName: 'Richard Doe', guardianPhone: '555-1234', address: '123 Main St, Harare',status: 'active', tuitionOwing: 250, levyOwing: 50, buildingFundOwing: 100 },
+  { id: 'S002', name: 'Jane Smith', grade: 'Grade 7',class: 'blue', dateOfBirth: '2012-09-22', gender: 'Female', guardianName: 'Sarah Smith', guardianPhone: '555-5678', address: '456 Oak Ave, Bulawayo',status: 'active', tuitionOwing: 0, levyOwing: 25, buildingFundOwing: 0 },
+  { id: 'S003', name: 'Peter Jones', grade: 'ECD A',class: 'red', dateOfBirth: '2019-02-15', gender: 'Male', guardianName: 'Emily Jones', guardianPhone: '555-9012', address: '789 Pine Ln, Harare',status: 'active', tuitionOwing: 150, levyOwing: 50, buildingFundOwing: 75 },
+  { id: 'S004', name: 'Mary Williams', grade: 'Grade 1',class: 'brown', dateOfBirth: '2018-11-30', gender: 'Female', guardianName: 'David Williams', guardianPhone: '555-3456', address: '101 Maple Dr, Mutare',status: 'active', tuitionOwing: 250, levyOwing: 0, buildingFundOwing: 100 },
+  { id: 'S005', name: 'David Brown', grade: 'Grade 3',class: 'purple', dateOfBirth: '2016-07-19', gender: 'Male', guardianName: 'Grace Brown', guardianPhone: '555-7890', address: '212 Cedar Ct, Gweru',status: 'active', tuitionOwing: 100, levyOwing: 10, buildingFundOwing: 50 },
 ];
 
 export const BANK_ACCOUNTS: BankAccount[] = [
