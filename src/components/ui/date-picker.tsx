@@ -33,21 +33,34 @@ export function DatePicker({
   toDate?: Date,
 }) {
   const [open, setOpen] = React.useState(false)
+  
+  // We need to manage the month displayed in the calendar separately
+  // so that it doesn't jump around when the user is selecting a date.
+  const [displayMonth, setDisplayMonth] = React.useState<Date>(date || fromDate || toDate || new Date());
+
+  React.useEffect(() => {
+    if (date) {
+      setDisplayMonth(date);
+    }
+  }, [date]);
+
 
   const handleYearChange = (year: string) => {
-    const newDate = date ? new Date(date) : new Date()
+    const newDate = new Date(displayMonth);
     newDate.setFullYear(parseInt(year, 10))
-    setDate(newDate)
+    setDisplayMonth(newDate);
   }
 
   const handleMonthChange = (month: string) => {
-    const newDate = date ? new Date(date) : new Date()
+    const newDate = new Date(displayMonth);
     newDate.setMonth(parseInt(month, 10))
-    setDate(newDate)
+    setDisplayMonth(newDate);
   }
-
+  
   const fromYear = fromDate?.getFullYear() || new Date().getFullYear() - 100;
   const toYear = toDate?.getFullYear() || new Date().getFullYear();
+
+  const years = Array.from({ length: toYear - fromYear + 1 }, (_, i) => (fromYear + i));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -63,41 +76,8 @@ export function DatePicker({
           {date ? format(date, "PPP") : <span>Pick a date</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="flex w-auto flex-col space-y-2 p-2">
-        <div className="flex space-x-2">
-          <Select
-             onValueChange={handleMonthChange}
-             value={date ? date.getMonth().toString() : undefined}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 12 }, (_, i) => (
-                <SelectItem key={i} value={i.toString()}>
-                  {format(new Date(0, i), "MMMM")}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            onValueChange={handleYearChange}
-            value={date ? date.getFullYear().toString() : undefined}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: toYear - fromYear + 1 }, (_, i) => (
-                <SelectItem key={i} value={(fromYear + i).toString()}>
-                  {fromYear + i}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="rounded-md border">
-          <Calendar
+      <PopoverContent className="w-auto p-0" align="start">
+         <Calendar
             mode="single"
             selected={date}
             onSelect={(d) => {
@@ -106,9 +86,10 @@ export function DatePicker({
             }}
             fromDate={fromDate}
             toDate={toDate}
-            month={date}
-          />
-        </div>
+            month={displayMonth}
+            onMonthChange={setDisplayMonth}
+            captionLayout="dropdown-nav"
+         />
       </PopoverContent>
     </Popover>
   )
