@@ -93,6 +93,7 @@ export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boo
       guardianPhone: '',
       address: '',
       status: 'active',
+      dateOfBirth: undefined,
     }
   });
 

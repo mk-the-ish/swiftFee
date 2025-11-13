@@ -1,17 +1,6 @@
-
 "use client"
 
 import * as React from "react"
-import { format } from "date-fns"
-
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 import {
   Select,
   SelectContent,
@@ -19,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { CalendarIcon } from "lucide-react"
 
 export function DatePicker({
   date,
@@ -32,65 +20,74 @@ export function DatePicker({
   fromDate?: Date,
   toDate?: Date,
 }) {
-  const [open, setOpen] = React.useState(false)
-  
-  // We need to manage the month displayed in the calendar separately
-  // so that it doesn't jump around when the user is selecting a date.
-  const [displayMonth, setDisplayMonth] = React.useState<Date>(date || fromDate || toDate || new Date());
+  const [day, setDay] = React.useState<string | undefined>(date ? String(date.getDate()) : undefined);
+  const [month, setMonth] = React.useState<string | undefined>(date ? String(date.getMonth()) : undefined);
+  const [year, setYear] = React.useState<string | undefined>(date ? String(date.getFullYear()) : undefined);
 
   React.useEffect(() => {
     if (date) {
-      setDisplayMonth(date);
+      setDay(String(date.getDate()));
+      setMonth(String(date.getMonth()));
+      setYear(String(date.getFullYear()));
+    } else {
+        setDay(undefined);
+        setMonth(undefined);
+        setYear(undefined);
     }
   }, [date]);
 
+  const handleDateChange = (part: 'day' | 'month' | 'year', value: string) => {
+    const newDay = part === 'day' ? parseInt(value, 10) : day ? parseInt(day, 10) : undefined;
+    const newMonth = part === 'month' ? parseInt(value, 10) : month ? parseInt(month, 10) : undefined;
+    const newYear = part === 'year' ? parseInt(value, 10) : year ? parseInt(year, 10) : undefined;
 
-  const handleYearChange = (year: string) => {
-    const newDate = new Date(displayMonth);
-    newDate.setFullYear(parseInt(year, 10))
-    setDisplayMonth(newDate);
-  }
+    if (part === 'day') setDay(value);
+    if (part === 'month') setMonth(value);
+    if (part === 'year') setYear(value);
 
-  const handleMonthChange = (month: string) => {
-    const newDate = new Date(displayMonth);
-    newDate.setMonth(parseInt(month, 10))
-    setDisplayMonth(newDate);
-  }
-  
+    if (newDay !== undefined && newMonth !== undefined && newYear !== undefined) {
+      const newDate = new Date(newYear, newMonth, newDay);
+      // Check if date is valid, e.g., not Feb 30.
+      if (newDate.getFullYear() === newYear && newDate.getMonth() === newMonth && newDate.getDate() === newDay) {
+          setDate(newDate);
+      } else {
+          setDate(undefined); // or handle invalid date case
+      }
+    } else {
+        setDate(undefined);
+    }
+  };
+
   const fromYear = fromDate?.getFullYear() || new Date().getFullYear() - 100;
   const toYear = toDate?.getFullYear() || new Date().getFullYear();
-
-  const years = Array.from({ length: toYear - fromYear + 1 }, (_, i) => (fromYear + i));
+  const years = Array.from({ length: toYear - fromYear + 1 }, (_, i) => fromYear + i).reverse();
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    value: String(i),
+    label: new Date(0, i).toLocaleString('default', { month: 'long' }),
+  }));
+  const daysInMonth = (year && month) ? new Date(parseInt(year, 10), parseInt(month, 10) + 1, 0).getDate() : 31;
+  const days = Array.from({ length: daysInMonth }, (_, i) => String(i + 1));
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant={"outline"}
-          className={cn(
-            "w-full justify-start text-left font-normal",
-            !date && "text-muted-foreground"
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, "PPP") : <span>Pick a date</span>}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-         <Calendar
-            mode="single"
-            selected={date}
-            onSelect={(d) => {
-                setDate(d)
-                setOpen(false)
-            }}
-            fromDate={fromDate}
-            toDate={toDate}
-            month={displayMonth}
-            onMonthChange={setDisplayMonth}
-            captionLayout="dropdown-nav"
-         />
-      </PopoverContent>
-    </Popover>
+    <div className="flex gap-2">
+      <Select value={day} onValueChange={(value) => handleDateChange('day', value)}>
+        <SelectTrigger className="w-1/3"><SelectValue placeholder="Day" /></SelectTrigger>
+        <SelectContent>
+          {days.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Select value={month} onValueChange={(value) => handleDateChange('month', value)}>
+        <SelectTrigger className="w-1/3"><SelectValue placeholder="Month" /></SelectTrigger>
+        <SelectContent>
+          {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Select value={year} onValueChange={(value) => handleDateChange('year', value)}>
+        <SelectTrigger className="w-1/3"><SelectValue placeholder="Year" /></SelectTrigger>
+        <SelectContent>
+          {years.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }

@@ -37,12 +37,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Printer } from 'lucide-react';
-import { Calendar } from '@/components/ui/calendar';
+import { Printer } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
-import { DateRange } from 'react-day-picker';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useAppContext } from '@/context/app-context';
 import { useToast } from '@/hooks/use-toast';
 import { generateFinancialStatementAction } from './actions';
@@ -53,10 +51,8 @@ import { gradeProgression, type Student, type Grade } from '@/lib/types';
 const reportFormSchema = z.object({
   feeType: z.enum(['all', 'tuition', 'levy', 'building', 'exam']),
   bankAccountId: z.string().optional(),
-  dateRange: z.object({
-    from: z.date().optional(),
-    to: z.date().optional(),
-  }),
+  startDate: z.date().optional(),
+  endDate: z.date().optional(),
 });
 
 function handlePrint(printAreaId: string, title: string) {
@@ -231,7 +227,6 @@ function AiReports() {
         resolver: zodResolver(reportFormSchema),
         defaultValues: {
         feeType: 'all',
-        dateRange: { from: undefined, to: undefined },
         },
     });
 
@@ -240,8 +235,8 @@ function AiReports() {
         setStatement('');
 
         let criteria = `Generate a financial statement for ${values.feeType} fees.`;
-        if (values.dateRange.from && values.dateRange.to) {
-            criteria += ` From ${format(values.dateRange.from, 'PPP')} to ${format(values.dateRange.to, 'PPP')}.`;
+        if (values.startDate && values.endDate) {
+            criteria += ` From ${format(values.startDate, 'PPP')} to ${format(values.endDate, 'PPP')}.`;
         }
         if (values.bankAccountId) {
             const bank = bankAccounts.find(b => b.id === values.bankAccountId);
@@ -306,51 +301,31 @@ function AiReports() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="dateRange"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Date range</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={'outline'}
-                              className={cn(
-                                'w-full pl-3 text-left font-normal',
-                                !field.value.from && 'text-muted-foreground'
-                              )}
-                            >
-                              {field.value.from ? (
-                                field.value.to ? (
-                                  <>
-                                    {format(field.value.from, 'LLL dd, y')} -{' '}
-                                    {format(field.value.to, 'LLL dd, y')}
-                                  </>
-                                ) : (
-                                  format(field.value.from, 'LLL dd, y')
-                                )
-                              ) : (
-                                <span>Pick a date range</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="range"
-                            selected={field.value as DateRange}
-                            onSelect={field.onChange}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                 <div className="space-y-2">
+                    <FormLabel>Date Range</FormLabel>
+                    <div className="grid gap-2">
+                        <FormField
+                        control={form.control}
+                        name="startDate"
+                        render={({ field }) => (
+                            <FormItem>
+                                <DatePicker date={field.value} setDate={field.onChange} />
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="endDate"
+                        render={({ field }) => (
+                             <FormItem>
+                                <DatePicker date={field.value} setDate={field.onChange} />
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                    </div>
+                 </div>
                 
                 <FormField
                   control={form.control}
