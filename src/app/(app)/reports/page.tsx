@@ -46,7 +46,7 @@ import { useToast } from '@/hooks/use-toast';
 import { generateFinancialStatementAction } from './actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { gradeProgression, type Student, type Grade } from '@/lib/types';
+import { gradeProgression, classColors, type Student, type Grade, type Class } from '@/lib/types';
 
 const reportFormSchema = z.object({
   feeType: z.enum(['all', 'tuition', 'levy', 'building', 'exam']),
@@ -149,25 +149,26 @@ function DebtorsList() {
 function ClassLists() {
     const { students } = useAppContext();
     const [selectedGrade, setSelectedGrade] = useState<Grade | 'all'>('ECD A');
+    const [selectedClass, setSelectedClass] = useState<Class | 'all'>('all');
 
     const classList = useMemo(() => {
         if (selectedGrade === 'all') return [];
         return students
-            .filter(s => s.grade === selectedGrade)
+            .filter(s => s.grade === selectedGrade && (selectedClass === 'all' || s.class === selectedClass))
             .sort((a,b) => a.name.localeCompare(b.name));
-    }, [students, selectedGrade]);
+    }, [students, selectedGrade, selectedClass]);
     
     return (
         <Card>
             <CardHeader>
                  <CardTitle>Class Lists</CardTitle>
-                 <CardDescription>View and print a list of students for any grade.</CardDescription>
+                 <CardDescription>View and print a list of students for any grade and class.</CardDescription>
             </CardHeader>
             <CardContent>
                  <div className="flex items-center gap-4 mb-6">
                     <Select onValueChange={(value) => setSelectedGrade(value as Grade)} value={selectedGrade}>
-                        <SelectTrigger className="w-[280px]">
-                            <SelectValue placeholder="Select a grade to view the class list" />
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select a grade" />
                         </SelectTrigger>
                         <SelectContent>
                              {gradeProgression.map(grade => (
@@ -175,14 +176,29 @@ function ClassLists() {
                             ))}
                         </SelectContent>
                     </Select>
-                    <Button variant="outline" onClick={() => handlePrint('class-list-print', `Class List - ${selectedGrade}`)} disabled={selectedGrade === 'all' || classList.length === 0}>
+                     <Select onValueChange={(value) => setSelectedClass(value as Class | 'all')} value={selectedClass}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select a class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Classes</SelectItem>
+                            {classColors.map(color => (
+                                <SelectItem key={color} value={color} className="capitalize">{color}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button 
+                        variant="outline" 
+                        onClick={() => handlePrint('class-list-print', `Class List - ${selectedGrade} ${selectedClass !== 'all' ? selectedClass : ''}`)} 
+                        disabled={selectedGrade === 'all' || classList.length === 0}
+                    >
                         <Printer className="mr-2 h-4 w-4" />
                         Print List
                     </Button>
                 </div>
                 
                 <div id="class-list-print">
-                    <h1 className="text-2xl font-bold mb-4">Class List: {selectedGrade}</h1>
+                    <h1 className="text-2xl font-bold mb-4 capitalize">Class List: {selectedGrade} {selectedClass !== 'all' ? selectedClass : ''}</h1>
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -204,7 +220,7 @@ function ClassLists() {
                             })}
                             {classList.length === 0 && selectedGrade !== 'all' && (
                                 <TableRow>
-                                    <TableCell colSpan={3} className="text-center h-24">No students found in {selectedGrade}.</TableCell>
+                                    <TableCell colSpan={3} className="text-center h-24">No students found for this selection.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

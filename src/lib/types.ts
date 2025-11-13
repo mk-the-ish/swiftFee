@@ -3,6 +3,7 @@ export type Grade = 'ECD A' | 'ECD B' | '1' | '2' | '3' | '4' | '5' | '6' | '7';
 export type Class = 'blue' | 'brown' | 'green' |'maroon'|'orange'|'pink'|'purple'|'red'|'white'|'yellow';
 
 export const gradeProgression: Grade[] = ['ECD A', 'ECD B', '1', '2', '3', '4', '5', '6', '7'];
+export const classColors: Class[] = ['blue', 'brown', 'green', 'maroon', 'orange', 'pink', 'purple', 'red', 'white', 'yellow'];
 
 export type FeeType = 'tuition' | 'levy' | 'building' | 'exam';
 
