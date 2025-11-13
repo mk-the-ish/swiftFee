@@ -1,8 +1,8 @@
-export type Grade = 'ECD A' | 'ECD B' | 'Grade 1' | 'Grade 2' | 'Grade 3' | 'Grade 4' | 'Grade 5' | 'Grade 6' | 'Grade 7';
+export type Grade = 'ECD A' | 'ECD B' | '1' | '2' | '3' | '4' | '5' | '6' | '7';
 
 export type Class = 'blue' | 'brown' | 'green' |'maroon'|'orange'|'pink'|'purple'|'red'|'white'|'yellow';
 
-export const gradeProgression: Grade[] = ['ECD A', 'ECD B', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7'];
+export const gradeProgression: Grade[] = ['ECD A', 'ECD B', '1', '2', '3', '4', '5', '6', '7'];
 
 export type FeeType = 'tuition' | 'levy' | 'building' | 'exam';
 
