@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -188,7 +189,7 @@ function EditStudentDialog({ student }: { student: Student }) {
             <DialogTrigger asChild>
                 <Button variant="outline" size="sm"><Pencil className="mr-2 h-4 w-4" />Edit Student</Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Edit Student</DialogTitle>
                     <DialogDescription>Update the details for {student.name}.</DialogDescription>
