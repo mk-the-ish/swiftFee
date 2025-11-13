@@ -170,34 +170,50 @@ export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boo
             )}/>
         </div>
         <div className="grid grid-cols-2 gap-4">
-             <FormField control={form.control} name="dateOfBirth" render={({ field }) => (
+             <FormField
+              control={form.control}
+              name="dateOfBirth"
+              render={({ field }) => (
                 <FormItem className="flex flex-col">
-                <FormLabel>Date of Birth</FormLabel>
-                <Popover>
+                  <FormLabel>Date of Birth</FormLabel>
+                  <Popover>
                     <PopoverTrigger asChild>
-                    <FormControl>
-                        <Button variant={'outline'} className={cn('w-full pl-3 text-left font-normal',!field.value && 'text-muted-foreground')}>
-                        {field.value ? (format(field.value, 'PPP')) : (<span>Pick a date</span>)}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      <FormControl>
+                        <Button
+                          variant={'outline'}
+                          className={cn(
+                            'w-full pl-3 text-left font-normal',
+                            !field.value && 'text-muted-foreground'
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, 'PPP')
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
-                    </FormControl>
+                      </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
+                      <Calendar
                         mode="single"
                         captionLayout="dropdown-buttons"
                         fromYear={1990}
                         toYear={new Date().getFullYear()}
                         selected={field.value}
                         onSelect={field.onChange}
-                        disabled={(date) => date > new Date() || date < new Date('1990-01-01')}
+                        disabled={(date) =>
+                          date > new Date() || date < new Date('1990-01-01')
+                        }
                         initialFocus
-                    />
+                      />
                     </PopoverContent>
-                </Popover>
-                <FormMessage />
+                  </Popover>
+                  <FormMessage />
                 </FormItem>
-            )}/>
+              )}
+            />
              <FormField control={form.control} name="status" render={({ field }) => (
                 <FormItem>
                 <FormLabel>Status</FormLabel>
