@@ -183,7 +183,16 @@ export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boo
                     </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date('1930-01-01')} initialFocus/>
+                    <Calendar
+                        mode="single"
+                        captionLayout="dropdown-buttons"
+                        fromYear={1990}
+                        toYear={new Date().getFullYear()}
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) => date > new Date() || date < new Date('1990-01-01')}
+                        initialFocus
+                    />
                     </PopoverContent>
                 </Popover>
                 <FormMessage />
