@@ -139,6 +139,14 @@
         "usdAmount": {
           "type": "number",
           "description": "The equivalent USD amount (after conversion, if necessary)."
+        },
+        "recordedById": {
+            "type": "string",
+            "description": "The ID of the user who recorded the payment."
+        },
+        "recordedBy": {
+            "type": "string",
+            "description": "The name of the user who recorded the payment."
         }
       },
       "required": [
@@ -149,7 +157,9 @@
         "currency",
         "amount",
         "bankAccountId",
-        "usdAmount"
+        "usdAmount",
+        "recordedById",
+        "recordedBy"
       ]
     },
     "TermBilling": {

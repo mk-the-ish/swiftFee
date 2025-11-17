@@ -47,8 +47,10 @@ export type Payment = {
   amountInUSD: number;
   date: string;
   bankAccountId?: string; // For non-cash payments
-  depositAccountId?: string; // For cash payments
+  depositAccountId?: string; // For cash deposits
   deposited: boolean;
+  recordedById: string;
+  recordedBy: string;
 };
 
 export type Transaction = {

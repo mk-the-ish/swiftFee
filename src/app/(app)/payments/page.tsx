@@ -46,6 +46,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useAppContext } from '@/context/app-context';
+import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import type { Payment, Student, Transaction } from '@/lib/types';
@@ -150,6 +151,7 @@ function StudentSelector({
 export default function PaymentsPage() {
   const { students, updateStudentBalances, bankAccounts, payments, addPayment, addTransaction, exchangeRate } =
     useAppContext();
+  const { user } = useUser();
   const { toast } = useToast();
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
@@ -169,6 +171,10 @@ export default function PaymentsPage() {
 
 
   async function onSubmit(values: z.infer<typeof paymentFormSchema>) {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to record a payment.' });
+        return;
+    }
     const student = students.find((s) => s.id === values.studentId);
     if (!student) {
       toast({ variant: 'destructive', title: 'Error', description: 'Student not found.' });
@@ -190,6 +196,8 @@ export default function PaymentsPage() {
       date: new Date().toISOString(),
       receiptNumber: values.receiptNumber,
       deposited: values.paymentMethod !== 'Cash', // Cash payments are deposited later
+      recordedById: user.uid,
+      recordedBy: user.displayName || user.email || 'Unknown User',
       ...(values.paymentMethod === 'Cash' 
             ? { depositAccountId: values.depositAccountId }
             : { bankAccountId: values.bankAccountId }
@@ -454,10 +462,9 @@ export default function PaymentsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Student</TableHead>
-                  <TableHead>Receipt #</TableHead>
-                  <TableHead>Method</TableHead>
+                  <TableHead>Details</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">Amount (USD)</TableHead>
+                  <TableHead className="text-right">Recorded By</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -468,16 +475,21 @@ export default function PaymentsPage() {
                       <div className="text-sm text-muted-foreground">{new Date(p.date).toLocaleDateString()}</div>
                     </TableCell>
                     <TableCell>
-                        <Badge variant="secondary">{p.receiptNumber}</Badge>
+                        <div className="flex flex-col gap-1">
+                            <Badge variant="secondary" className="w-fit">{p.receiptNumber}</Badge>
+                            <Badge variant="outline" className="capitalize w-fit">{p.paymentMethod}</Badge>
+                        </div>
                     </TableCell>
-                    <TableCell><Badge variant="outline" className="capitalize">{p.paymentMethod}</Badge></TableCell>
-                    <TableCell className="text-right">{formatCurrency(p.amount, p.currency)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(p.amountInUSD)}</TableCell>
+                    <TableCell className="text-right">
+                        <div>{formatCurrency(p.amount, p.currency)}</div>
+                        {p.currency === 'ZWG' && <div className="text-xs text-muted-foreground">({formatCurrency(p.amountInUSD)})</div>}
+                    </TableCell>
+                    <TableCell className="text-right">{p.recordedBy}</TableCell>
                   </TableRow>
                 ))}
                 {payments.length === 0 && (
                     <TableRow>
-                        <TableCell colSpan={5} className="text-center">No payments recorded yet.</TableCell>
+                        <TableCell colSpan={4} className="text-center">No payments recorded yet.</TableCell>
                     </TableRow>
                 )}
               </TableBody>
