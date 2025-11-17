@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -236,12 +237,6 @@ export default function PaymentsPage() {
     form.reset({
       currency: 'USD',
       receiptNumber: '',
-      studentId: undefined,
-      feeType: undefined,
-      amount: undefined,
-      bankAccountId: undefined,
-      depositAccountId: undefined,
-      paymentMethod: undefined,
     });
     setSelectedStudent(null);
   }
