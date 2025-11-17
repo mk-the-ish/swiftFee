@@ -1,9 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
-import type { Student, Payment, BankAccount, Transaction, ExchangeRate } from '@/lib/types';
+import type { Student, Payment, BankAccount, Transaction, ExchangeRate, Note } from '@/lib/types';
 import { useCollection, useDoc } from '@/firebase/firestore/hooks';
-import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference } from 'firebase/firestore';
+import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference, deleteDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -30,6 +30,10 @@ interface AppContextType {
   setExchangeRate: (rate: number) => Promise<void>;
   
   markPaymentsAsDeposited: (paymentIds: string[]) => Promise<void>;
+
+  notes: Note[];
+  addNote: (note: Omit<Note, 'id' | 'createdAt'>) => Promise<void>;
+  deleteNote: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -39,12 +43,12 @@ const gradeProgression = ['ECD A', 'ECD B', 'Grade 1', 'Grade 2', 'Grade 3', 'Gr
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
 
-  const { data: students = [], add: addStudentToCollection, update: updateStudentInCollection } = useCollection<Student>(firestore ? collection(firestore, 'students') : null);
-  const { data: payments = [], add: addPaymentToCollection } = useCollection<Payment>(firestore ? collection(firestore, 'payments') : null);
-  const { data: bankAccounts = [], add: addBankAccountToCollection } = useCollection<BankAccount>(firestore ? collection(firestore, 'bankAccounts') : null);
-  const { data: transactions = [], add: addTransactionToCollection } = useCollection<Transaction>(firestore ? collection(firestore, 'transactions') : null);
+  const { data: students = [] } = useCollection<Student>(firestore ? collection(firestore, 'students') : null);
+  const { data: payments = [] } = useCollection<Payment>(firestore ? collection(firestore, 'payments') : null);
+  const { data: bankAccounts = [] } = useCollection<BankAccount>(firestore ? collection(firestore, 'bankAccounts') : null);
+  const { data: transactions = [] } = useCollection<Transaction>(firestore ? collection(firestore, 'transactions') : null);
   const { data: exchangeRate } = useDoc<ExchangeRate>(firestore ? doc(firestore, 'settings', 'exchangeRate') : null);
-
+  const { data: notes = [] } = useCollection<Note>(firestore ? collection(firestore, 'notes') : null);
 
   const setExchangeRate = async (rate: number) => {
     if (!firestore) return;
@@ -180,6 +184,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return undefined;
   };
 
+  const addNote = async (note: Omit<Note, 'id' | 'createdAt'>) => {
+    if (!firestore) return;
+    const ref = collection(firestore, 'notes');
+    const data = { ...note, createdAt: new Date().toISOString() };
+    addDoc(ref, data).catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'create', requestResourceData: data }));
+    });
+  }
+
+  const deleteNote = async (id: string) => {
+      if (!firestore) return;
+      const noteRef = doc(firestore, 'notes', id);
+      deleteDoc(noteRef).catch(err => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: noteRef.path, operation: 'delete' }));
+      });
+  }
+
   const contextValue = useMemo(() => ({
     students,
     addStudent,
@@ -196,7 +217,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     exchangeRate: exchangeRate ?? { rate: 1, lastUpdated: '' },
     setExchangeRate,
     markPaymentsAsDeposited,
-  }), [students, updateStudent, addStudent, payments, bankAccounts, transactions, exchangeRate, firestore, addBankAccount, addTransaction, bulkUpgradeGrades, bulkBillStudents]);
+    notes,
+    addNote,
+    deleteNote,
+  }), [students, updateStudent, addStudent, payments, bankAccounts, transactions, exchangeRate, firestore, addBankAccount, addTransaction, bulkUpgradeGrades, bulkBillStudents, notes, addNote, deleteNote]);
 
   return (
     <AppContext.Provider value={contextValue}>

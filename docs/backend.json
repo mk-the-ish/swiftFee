@@ -191,6 +191,40 @@
         "tuition",
         "buildingFund"
       ]
+    },
+    "Note": {
+      "title": "Note",
+      "description": "A simple note left by a user.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the note."
+        },
+        "description": {
+          "type": "string",
+          "description": "The content of the note."
+        },
+        "authorName": {
+          "type": "string",
+          "description": "The name of the user who created the note."
+        },
+        "authorId": {
+          "type": "string",
+          "description": "The ID of the user who created the note."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the note was created."
+        }
+      },
+      "required": [
+        "description",
+        "authorName",
+        "authorId",
+        "createdAt"
+      ]
     }
   },
   "auth": {
@@ -297,6 +331,22 @@
             {
               "name": "userId",
               "description": "The user ID of the bursar."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/notes/{noteId}",
+        "definition": {
+          "entityName": "Note",
+          "schema": {
+            "$ref": "#/backend/entities/Note"
+          },
+          "description": "Stores user-created notes, accessible to all authenticated users.",
+          "params": [
+            {
+              "name": "noteId",
+              "description": "Unique identifier for the note."
             }
           ]
         }

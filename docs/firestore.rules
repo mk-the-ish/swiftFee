@@ -14,6 +14,7 @@
  * - /payments/{paymentId}: Stores payment records made by students.
  * - /transactions/{transactionId}: Stores bank transaction data.
  * - /settings/exchangeRate: Stores the current exchange rate. This is public.
+ * - /notes/{noteId}: Stores user-created notes.
  *
  * @key_security_decisions
  * - Bank accounts and transactions are considered highly sensitive. Listing
@@ -22,6 +23,8 @@
  * - Student data and payments are accessible, but the rules can be extended to
  *   limit access based on roles or ownership.
  * - The exchange rate is publicly readable.
+ * - Notes can be read by any authenticated user. Creation is allowed for
+ *   any authenticated user, and deletion is restricted to the note's author.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -100,6 +103,21 @@ service cloud.firestore {
       allow create: if false;
       allow update: if false;
       allow delete: if false;
+    }
+
+    /**
+     * @description Secures access to user-created notes.
+     * @path /notes/{noteId}
+     * @allow (list, get) if isSignedIn()
+     * @allow (create) if isSignedIn() && request.resource.data.authorId == request.auth.uid
+     * @allow (delete) if isSignedIn() && resource.data.authorId == request.auth.uid
+     * @principle Allows any authenticated user to read notes. Users can create notes and can only delete their own notes.
+     */
+    match /notes/{noteId} {
+      allow list, get: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+      allow update: if false;
     }
   }
 

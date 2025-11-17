@@ -12,6 +12,7 @@ import {
   Settings,
   Users,
   Wallet,
+  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +38,7 @@ const navItems = [
   { href: '/students', icon: Users, label: 'Students' },
   { href: '/banking', icon: Banknote, label: 'Banking' },
   { href: '/reports', icon: BookOpen, label: 'Reports' },
+  { href: '/notes', icon: FileText, label: 'Notes' },
   { href: '/admin', icon: Settings, label: 'Admin' },
 ];
 
@@ -46,6 +48,7 @@ const pageTitles: { [key: string]: string } = {
   '/students': 'Student Management',
   '/banking': 'Banking & Transactions',
   '/reports': 'Financial Reports',
+  '/notes': 'Notes',
   '/admin': 'System Administration',
 };
 

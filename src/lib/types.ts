@@ -67,3 +67,11 @@ export type ExchangeRate = {
     rate: number;
     lastUpdated: string;
 };
+
+export type Note = {
+  id: string;
+  description: string;
+  authorName: string;
+  createdAt: string;
+  authorId: string;
+};
