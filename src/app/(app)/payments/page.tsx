@@ -461,6 +461,7 @@ export default function PaymentsPage() {
                 <TableRow>
                   <TableHead>Student</TableHead>
                   <TableHead>Details</TableHead>
+                  <TableHead>Fee Type</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead className="text-right">Recorded By</TableHead>
                 </TableRow>
@@ -478,6 +479,9 @@ export default function PaymentsPage() {
                             <Badge variant="outline" className="capitalize w-fit">{p.paymentMethod}</Badge>
                         </div>
                     </TableCell>
+                    <TableCell>
+                        <Badge variant="outline" className="capitalize w-fit">{p.feeType}</Badge>
+                    </TableCell>
                     <TableCell className="text-right">
                         <div>{formatCurrency(p.amount, p.currency)}</div>
                         {p.currency === 'ZWG' && <div className="text-xs text-muted-foreground">({formatCurrency(p.amountInUSD)})</div>}
@@ -487,7 +491,7 @@ export default function PaymentsPage() {
                 ))}
                 {payments.length === 0 && (
                     <TableRow>
-                        <TableCell colSpan={4} className="text-center">No payments recorded yet.</TableCell>
+                        <TableCell colSpan={5} className="text-center">No payments recorded yet.</TableCell>
                     </TableRow>
                 )}
               </TableBody>
