@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'SwiftFee Manager',
+  title: 'Prim-Makomo',
   description: 'A school management system for fees payments and financial statements.',
 };
 
