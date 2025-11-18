@@ -65,6 +65,8 @@ export type Transaction = {
   currency: 'USD' | 'ZWG';
   originalAmount: number;
   relatedPaymentId?: string;
+  recordedById: string;
+  recordedBy: string;
 };
 
 export type ExchangeRate = {

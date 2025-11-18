@@ -62,6 +62,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import { useUser } from '@/firebase/auth/use-user';
 
 
 const expenseFormSchema = z.object({
@@ -73,6 +74,7 @@ const expenseFormSchema = z.object({
 function RecordExpense() {
   const { bankAccounts, addTransaction } = useAppContext();
   const { toast } = useToast();
+  const { user } = useUser();
   const form = useForm<z.infer<typeof expenseFormSchema>>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
@@ -81,6 +83,10 @@ function RecordExpense() {
   });
 
   async function onSubmit(values: z.infer<typeof expenseFormSchema>) {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to record an expense.' });
+        return;
+    }
     const bankAccount = bankAccounts.find(ba => ba.id === values.bankAccountId);
     if (!bankAccount) return;
 
@@ -92,6 +98,8 @@ function RecordExpense() {
       amount: values.amount,
       currency: bankAccount.currency,
       originalAmount: values.amount,
+      recordedById: user.uid,
+      recordedBy: user.displayName || user.email || 'Unknown User',
     };
     await addTransaction(newTransaction);
     toast({
@@ -175,6 +183,7 @@ function RecordExpense() {
 function DailyDeposits() {
     const { payments, markPaymentsAsDeposited, bankAccounts, addTransaction } = useAppContext();
     const { toast } = useToast();
+    const { user } = useUser();
 
     const cashByAccount = React.useMemo(() => {
         const cashPaymentsToDeposit = payments
@@ -207,6 +216,10 @@ function DailyDeposits() {
             toast({ variant: 'destructive', title: 'Error', description: 'No cash payments to deposit for this account.' });
             return;
         }
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to record a deposit.' });
+            return;
+        }
 
         const newTransaction: Omit<Transaction, 'id'> = {
             date: new Date().toISOString(),
@@ -216,6 +229,8 @@ function DailyDeposits() {
             amount: total, // Assuming cash deposits are already in the correct currency of the account
             currency: currency,
             originalAmount: total,
+            recordedById: user.uid,
+            recordedBy: user.displayName || user.email || 'Unknown User',
         };
         await addTransaction(newTransaction);
 
@@ -336,6 +351,7 @@ function TransactionHistory() {
                                 <TableRow>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Description</TableHead>
+                                    <TableHead>Recorded By</TableHead>
                                     <TableHead className="text-right">Amount</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -349,6 +365,7 @@ function TransactionHistory() {
                                                 <span>{t.description}</span>
                                             </div>
                                         </TableCell>
+                                        <TableCell>{t.recordedBy}</TableCell>
                                         <TableCell className={`text-right font-medium ${t.type === 'incoming' ? 'text-green-600' : 'text-red-600'}`}>
                                             {t.type === 'incoming' ? '+' : '-'} {formatCurrency(t.originalAmount, t.currency)}
                                         </TableCell>
@@ -356,7 +373,7 @@ function TransactionHistory() {
                                 ))}
                                 {(!groupedTransactions[account.id] || groupedTransactions[account.id].length === 0) && (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="text-center h-24">No transactions for this account yet.</TableCell>
+                                        <TableCell colSpan={4} className="text-center h-24">No transactions for this account yet.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
