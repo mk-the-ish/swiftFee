@@ -26,6 +26,13 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { useAppContext } from '@/context/app-context';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { gradeProgression, classColors, type Student, type Grade, type Class, Payment, Transaction } from '@/lib/types';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from '@/components/ui/select';
 
 function DebtorsList() {
     const { students } = useAppContext();
@@ -100,24 +107,47 @@ function ClassLists() {
     const [selectedClass, setSelectedClass] = useState<Class | 'all'>('all');
 
     const classList = useMemo(() => {
-        if (selectedGrade === 'all') return [];
         return students
-            .filter(s => s.grade === selectedGrade && (selectedClass === 'all' || s.class === selectedClass))
+            .filter(s => (selectedGrade === 'all' || s.grade === selectedGrade) && (selectedClass === 'all' || s.class === selectedClass))
             .sort((a,b) => a.name.localeCompare(b.name));
     }, [students, selectedGrade, selectedClass]);
     
     return (
         <Card>
-            <CardHeader>
-                 <CardTitle>Class Lists</CardTitle>
-                 <CardDescription>View and print a list of students for any grade and class.</CardDescription>
+            <CardHeader className="flex-row items-start justify-between">
+                 <div>
+                    <CardTitle>Class Lists</CardTitle>
+                    <CardDescription>View and print a list of students for any grade and class.</CardDescription>
+                 </div>
+                 <Button variant="outline" onClick={() => handlePrint('class-list-print', `Class List for ${selectedGrade} ${selectedClass !== 'all' ? selectedClass : ''}`)}>
+                    <Printer className="mr-2 h-4 w-4" />
+                    Print List
+                </Button>
             </CardHeader>
             <CardContent>
                  <div className="flex items-center gap-4 mb-6">
-                    <DatePicker 
-                        date={new Date()}
-                        setDate={() => {}}
-                    />
+                    <Select value={selectedGrade} onValueChange={(value) => setSelectedGrade(value as Grade)}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select Grade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Grades</SelectItem>
+                            {gradeProgression.map(grade => (
+                                <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={selectedClass} onValueChange={(value) => setSelectedClass(value as Class)}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select Class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Classes</SelectItem>
+                            {classColors.map(c => (
+                                <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                  </div>
                 
                 <div id="class-list-print">
@@ -141,7 +171,7 @@ function ClassLists() {
                                     </TableRow>
                                 )
                             })}
-                            {classList.length === 0 && selectedGrade !== 'all' && (
+                            {classList.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={3} className="text-center h-24">No students found for this selection.</TableCell>
                                 </TableRow>
