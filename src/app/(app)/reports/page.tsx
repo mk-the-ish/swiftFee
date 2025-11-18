@@ -2,30 +2,11 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -36,25 +17,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import { Printer } from 'lucide-react';
 import { cn, formatCurrency, handlePrint } from '@/lib/utils';
 import { format } from 'date-fns';
 import { DatePicker } from '@/components/ui/date-picker';
 import { useAppContext } from '@/context/app-context';
-import { useToast } from '@/hooks/use-toast';
-import { generateFinancialStatementAction } from './actions';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { gradeProgression, classColors, type Student, type Grade, type Class } from '@/lib/types';
-
-const reportFormSchema = z.object({
-  feeType: z.enum(['all', 'tuition', 'levy', 'building', 'exam']),
-  bankAccountId: z.string().optional(),
-  startDate: z.date().optional(),
-  endDate: z.date().optional(),
-});
-
+import { gradeProgression, classColors, type Student, type Grade, type Class, Payment, Transaction } from '@/lib/types';
 
 function DebtorsList() {
     const { students } = useAppContext();
@@ -143,36 +114,11 @@ function ClassLists() {
             </CardHeader>
             <CardContent>
                  <div className="flex items-center gap-4 mb-6">
-                    <Select onValueChange={(value) => setSelectedGrade(value as Grade)} value={selectedGrade}>
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Select a grade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                             {gradeProgression.map(grade => (
-                                <SelectItem key={grade} value={grade}>{grade}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                     <Select onValueChange={(value) => setSelectedClass(value as Class | 'all')} value={selectedClass}>
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Select a class" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Classes</SelectItem>
-                            {classColors.map(color => (
-                                <SelectItem key={color} value={color} className="capitalize">{color}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Button 
-                        variant="outline" 
-                        onClick={() => handlePrint('class-list-print', `Class List - ${selectedGrade} ${selectedClass !== 'all' ? selectedClass : ''}`)} 
-                        disabled={selectedGrade === 'all' || classList.length === 0}
-                    >
-                        <Printer className="mr-2 h-4 w-4" />
-                        Print List
-                    </Button>
-                </div>
+                    <DatePicker 
+                        date={new Date()}
+                        setDate={() => {}}
+                    />
+                 </div>
                 
                 <div id="class-list-print">
                     <h1 className="text-2xl font-bold mb-4 capitalize">Class List: {selectedGrade} {selectedClass !== 'all' ? selectedClass : ''}</h1>
@@ -209,179 +155,118 @@ function ClassLists() {
     );
 }
 
+function DailyStatement() {
+  const { payments, transactions } = useAppContext();
+  const [date, setDate] = useState<Date | undefined>(new Date());
 
-function AiReports() {
-    const { bankAccounts } = useAppContext();
-    const { toast } = useToast();
-    const [isLoading, setIsLoading] = useState(false);
-    const [statement, setStatement] = useState('');
-
-    const form = useForm<z.infer<typeof reportFormSchema>>({
-        resolver: zodResolver(reportFormSchema),
-        defaultValues: {
-        feeType: 'all',
-        },
-    });
-
-    async function onSubmit(values: z.infer<typeof reportFormSchema>) {
-        setIsLoading(true);
-        setStatement('');
-
-        let criteria = `Generate a financial statement for ${values.feeType} fees.`;
-        if (values.startDate && values.endDate) {
-            criteria += ` From ${format(values.startDate, 'PPP')} to ${format(values.endDate, 'PPP')}.`;
-        }
-        if (values.bankAccountId) {
-            const bank = bankAccounts.find(b => b.id === values.bankAccountId);
-            if(bank) {
-                criteria += ` Deposited into the ${bank.bankName} (${bank.accountNumber}) account.`;
-            }
-        }
-        
-        const result = await generateFinancialStatementAction({ criteria });
-
-        if (result.error) {
-            toast({
-                variant: 'destructive',
-                title: 'Error Generating Statement',
-                description: result.error,
-            });
-        } else if (result.statement) {
-            setStatement(result.statement);
-            toast({
-                title: 'Statement Generated',
-                description: 'The financial statement has been successfully generated.',
-            });
-        }
-
-        setIsLoading(false);
+  const { dailyPayments, dailyExpenses, paymentsTotal, expensesTotal } = useMemo(() => {
+    if (!date) {
+      return { dailyPayments: [], dailyExpenses: [], paymentsTotal: 0, expensesTotal: 0 };
     }
+
+    const selectedDate = format(date, 'yyyy-MM-dd');
+
+    const dailyPayments = payments.filter(p => format(new Date(p.date), 'yyyy-MM-dd') === selectedDate);
+    const dailyExpenses = transactions.filter(t => t.type === 'outgoing' && format(new Date(t.date), 'yyyy-MM-dd') === selectedDate);
+    
+    const paymentsTotal = dailyPayments.reduce((acc, p) => acc + p.amountInUSD, 0);
+    const expensesTotal = dailyExpenses.reduce((acc, t) => acc + t.amount, 0);
+
+    return { dailyPayments, dailyExpenses, paymentsTotal, expensesTotal };
+  }, [date, payments, transactions]);
+
   return (
-    <div className="grid gap-8 md:grid-cols-3">
-      <div className="md:col-span-1">
-        <Card>
-          <CardHeader>
-            <CardTitle>Generate AI Statement</CardTitle>
-            <CardDescription>
-              Use AI to generate a financial statement based on your criteria.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="feeType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Fee Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a fee type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="all">All Fees</SelectItem>
-                          <SelectItem value="tuition">Tuition</SelectItem>
-                          <SelectItem value="levy">Levy</SelectItem>
-                          <SelectItem value="building">Building Fund</SelectItem>
-                          <SelectItem value="exam">Exam Fee</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
+    <Card>
+      <CardHeader className="flex-row items-start justify-between">
+        <div>
+          <CardTitle>Daily Statement</CardTitle>
+          <CardDescription>A summary of payments and expenses for a selected day.</CardDescription>
+        </div>
+        <div className="flex items-center gap-4">
+          <DatePicker date={date} setDate={setDate} />
+          <Button variant="outline" onClick={() => handlePrint('daily-statement-print', `Daily Statement for ${date ? format(date, 'PPP') : ''}`)} disabled={!date}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print Statement
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div id="daily-statement-print">
+          <h1 className="text-2xl font-bold mb-4">Daily Statement for {date ? format(date, 'PPP') : 'N/A'}</h1>
+          <div className="grid grid-cols-2 gap-8">
+            <div>
+              <h2 className="text-lg font-semibold mb-2">Payments Received (Income)</h2>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Receipt #</TableHead>
+                    <TableHead className="text-right">Amount (USD)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dailyPayments.map(p => (
+                    <TableRow key={p.id}>
+                      <TableCell>{p.studentName}</TableCell>
+                      <TableCell>{p.receiptNumber}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(p.amountInUSD)}</TableCell>
+                    </TableRow>
+                  ))}
+                   {dailyPayments.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={3} className="h-24 text-center">No payments recorded for this day.</TableCell>
+                    </TableRow>
+                   )}
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-right font-bold">Total Income</TableCell>
+                    <TableCell className="text-right font-bold">{formatCurrency(paymentsTotal)}</TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold mb-2">Expenses Paid (Outgoing)</h2>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Amount (USD)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dailyExpenses.map(t => (
+                    <TableRow key={t.id}>
+                      <TableCell>{t.description}</TableCell>
+                      <TableCell className="capitalize">{t.category}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(t.amount)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {dailyExpenses.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={3} className="h-24 text-center">No expenses recorded for this day.</TableCell>
+                    </TableRow>
                   )}
-                />
-
-                 <div className="space-y-2">
-                    <FormLabel>Date Range</FormLabel>
-                    <div className="grid gap-2">
-                        <FormField
-                        control={form.control}
-                        name="startDate"
-                        render={({ field }) => (
-                            <FormItem>
-                                <DatePicker date={field.value} setDate={field.onChange} />
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                        <FormField
-                        control={form.control}
-                        name="endDate"
-                        render={({ field }) => (
-                             <FormItem>
-                                <DatePicker date={field.value} setDate={field.onChange} />
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                    </div>
-                 </div>
-                
-                <FormField
-                  control={form.control}
-                  name="bankAccountId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Bank Account (Optional)</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="All bank accounts" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {bankAccounts.map((b) => (
-                            <SelectItem key={b.id} value={b.id}>
-                              {b.bankName} - {b.accountNumber} ({b.currency})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Generating...' : 'Generate Statement'}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      </div>
-      <div className="md:col-span-2">
-        <Card className="h-full">
-          <CardHeader>
-            <CardTitle>Generated Financial Statement</CardTitle>
-            <CardDescription>The AI-generated statement will appear below.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-                <div className="space-y-4">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                    <Skeleton className="h-4 w-5/6" />
-                    <Skeleton className="h-4 w-2/3" />
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                </div>
-            ) : statement ? (
-              <pre className="whitespace-pre-wrap font-sans text-sm">{statement}</pre>
-            ) : (
-              <div className="flex items-center justify-center h-48 text-muted-foreground">
-                <p>Your generated statement will be displayed here.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-right font-bold">Total Expenses</TableCell>
+                    <TableCell className="text-right font-bold">{formatCurrency(expensesTotal)}</TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
+          </div>
+          <div className="mt-8 text-right">
+             <h2 className="text-xl font-bold">Net Total for the Day: {formatCurrency(paymentsTotal - expensesTotal)}</h2>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
-
 
 export default function ReportsPage() {
     return (
@@ -389,7 +274,7 @@ export default function ReportsPage() {
             <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="debtors">Debtors List</TabsTrigger>
                 <TabsTrigger value="class_lists">Class Lists</TabsTrigger>
-                <TabsTrigger value="ai_reports">AI Statements</TabsTrigger>
+                <TabsTrigger value="daily_statement">Daily Statement</TabsTrigger>
             </TabsList>
             <TabsContent value="debtors" className="mt-6">
                 <DebtorsList />
@@ -397,8 +282,8 @@ export default function ReportsPage() {
             <TabsContent value="class_lists" className="mt-6">
                 <ClassLists />
             </TabsContent>
-            <TabsContent value="ai_reports" className="mt-6">
-                <AiReports />
+            <TabsContent value="daily_statement" className="mt-6">
+                <DailyStatement />
             </TabsContent>
         </Tabs>
     )
