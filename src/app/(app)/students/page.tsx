@@ -66,7 +66,7 @@ const studentFormSchema = z.object({
   guardianName: z.string().min(2, { message: "Guardian's name is too short." }),
   guardianPhone: z.string().min(5, { message: "Guardian's phone is too short." }),
   address: z.string().min(5, { message: 'Address is too short.' }),
-  status: z.enum(['active', 'graduated', 'transferred']),
+  status: z.enum(['active', 'graduated', 'transferred', 'entrant']),
 });
 
 export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boolean) => void, studentToEdit?: Student }) {
@@ -205,6 +205,7 @@ export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boo
                     <FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl>
                     <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="entrant">Entrant</SelectItem>
                     <SelectItem value="graduated">Graduated</SelectItem>
                     <SelectItem value="transferred">Transferred</SelectItem>
                     </SelectContent>
@@ -362,6 +363,7 @@ export default function StudentsPage() {
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="entrant">Entrant</SelectItem>
                     <SelectItem value="graduated">Graduated</SelectItem>
                     <SelectItem value="transferred">Transferred</SelectItem>
                 </SelectContent>
@@ -392,7 +394,7 @@ export default function StudentsPage() {
                 <TableCell>{formatCurrency(student.levyOwing)}</TableCell>
                 <TableCell>{formatCurrency(student.buildingFundOwing)}</TableCell>
                 <TableCell className="font-semibold">{formatCurrency(student.totalOwing)}</TableCell>
-                <TableCell><Badge variant={student.status === 'active' ? 'default' : 'secondary'} className="capitalize">{student.status}</Badge></TableCell>
+                <TableCell><Badge variant={student.status === 'active' || student.status === 'entrant' ? 'default' : 'secondary'} className="capitalize">{student.status}</Badge></TableCell>
               </TableRow>
             ))}
              {filteredAndSortedStudents.length === 0 && (

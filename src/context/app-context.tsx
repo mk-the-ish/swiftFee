@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
@@ -153,7 +154,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const bulkUpgradeGrades = async () => {
     if (!firestore) return;
     const batch = writeBatch(firestore);
-    students.forEach(student => {
+
+    // Get a fresh copy of students for processing
+    const allStudents: Student[] = [...students];
+
+    // First, change 'entrant' to 'active'
+    allStudents.forEach(student => {
+      if (student.status === 'entrant') {
+        const studentRef = doc(firestore, 'students', student.id);
+        batch.update(studentRef, { status: 'active' });
+        // Update the local copy so the next step works on the correct status
+        student.status = 'active'; 
+      }
+    });
+
+    // Then, upgrade 'active' students
+    allStudents.forEach(student => {
       if (student.status === 'active') {
         const studentRef = doc(firestore, 'students', student.id);
         const currentGradeIndex = gradeProgression.indexOf(student.grade as Grade);
@@ -168,6 +184,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
     });
+
     batch.commit()
         .catch((err) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: '/students', operation: 'update', requestResourceData: { 'note': 'bulk grade upgrade' } }));

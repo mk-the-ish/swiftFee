@@ -1,3 +1,4 @@
+
 export type Grade = 'R' | 'ECD A' | 'ECD B' | '1' | '2' | '3' | '4' | '5' | '6' | '7';
 
 export type Class = 'blue' | 'brown' | 'green' |'maroon'|'orange'|'pink'|'purple'|'red'|'white'|'yellow';
@@ -27,7 +28,7 @@ export const statementCategories: StatementCategory[] = ['tuition', 'levy', 'bui
 
 export type PaymentMethod = 'Cash' | 'Bank Transfer' | 'Ecocash';
 
-export type StudentStatus = 'active' | 'graduated' | 'transferred';
+export type StudentStatus = 'active' | 'graduated' | 'transferred' | 'entrant';
 
 export type Student = {
   id: string;

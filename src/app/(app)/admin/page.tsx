@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -174,7 +175,7 @@ function NewYearUpgrade() {
       <CardContent>
         <p className="text-sm text-muted-foreground">
             The grade progression is: ECD A → ECD B → Grade 1 → ... → Grade 7.
-            Students in Grade 7 will have their status set to 'Graduated'.
+            Students in Grade 7 will have their status set to 'Graduated'. Students with status 'Entrant' will be changed to 'Active'.
         </p>
       </CardContent>
       <CardFooter>
@@ -187,7 +188,7 @@ function NewYearUpgrade() {
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
                 This action cannot be undone. This will permanently upgrade all
-                students to their next grade level.
+                students to their next grade level and activate all entrants.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
