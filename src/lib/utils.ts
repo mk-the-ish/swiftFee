@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Transaction } from "./types";
+import type { Transaction, Payment, StatementCategory } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -54,4 +54,22 @@ export function handlePrint(printAreaId: string, title: string) {
             printWindow.close();
         }, 1000);
     }
+}
+
+export function getPaymentCategory(payment?: Payment): StatementCategory {
+    if (!payment) return 'other';    
+    const validCategories: StatementCategory[] = ['tuition', 'levy', 'building', 'exam', 'stationery', 'salaries', 'utilities', 'maintenance', 'other'];
+    if (validCategories.includes(payment.feeType as StatementCategory)) {
+        return payment.feeType as StatementCategory;
+    }
+    return 'other';
+}
+
+export function getExpenseCategory(description: string): StatementCategory {
+    const lowerDesc = description.toLowerCase();
+    if (lowerDesc.includes('salary') || lowerDesc.includes('salaries')) return 'salaries';
+    if (lowerDesc.includes('stationery')) return 'stationery';
+    if (lowerDesc.includes('utility') || lowerDesc.includes('utilities') || lowerDesc.includes('bill')) return 'utilities';
+    if (lowerDesc.includes('maintenance') || lowerDesc.includes('repair')) return 'maintenance';
+    return 'other';
 }

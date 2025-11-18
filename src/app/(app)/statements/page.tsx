@@ -16,6 +16,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,10 +26,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAppContext } from '@/context/app-context';
-import { formatCurrency, handlePrint } from '@/lib/utils';
-import type { BankAccount, Transaction, Payment, StatementCategory } from '@/lib/types';
-import { startOfMonth, endOfMonth, format } from 'date-fns';
+import { formatCurrency, handlePrint, getExpenseCategory, getPaymentCategory } from '@/lib/utils';
+import type { BankAccount, Transaction, Payment, StatementCategory, FeeType } from '@/lib/types';
+import { startOfMonth, endOfMonth, format, startOfYear, endOfYear } from 'date-fns';
 import { Printer } from 'lucide-react';
 
 type CategorizedTransaction = {
@@ -56,28 +58,6 @@ function Cashbook() {
         return acc ? `${acc.bankName} ${acc.accountNumber}` : 'Unknown';
     }
 
-    const getPaymentCategory = (paymentId?: string): StatementCategory | 'other' => {
-        if (!paymentId) return 'other';
-        const payment = payments.find(p => p.id === paymentId);
-        if (!payment) return 'other';
-        
-        // Ensure feeType is a valid StatementCategory
-        const validCategories: StatementCategory[] = ['tuition', 'levy', 'building', 'exam', 'stationery', 'salaries', 'utilities', 'maintenance', 'other'];
-        if (validCategories.includes(payment.feeType as StatementCategory)) {
-            return payment.feeType as StatementCategory;
-        }
-        return 'other';
-    }
-    
-    const getExpenseCategory = (description: string): StatementCategory => {
-        const lowerDesc = description.toLowerCase();
-        if (lowerDesc.includes('salary') || lowerDesc.includes('salaries')) return 'salaries';
-        if (lowerDesc.includes('stationery')) return 'stationery';
-        if (lowerDesc.includes('utility') || lowerDesc.includes('utilities') || lowerDesc.includes('bill')) return 'utilities';
-        if (lowerDesc.includes('maintenance') || lowerDesc.includes('repair')) return 'maintenance';
-        return 'other';
-    }
-
     const filteredTransactions = transactions.filter(tx => {
       const txDate = new Date(tx.date);
       const matchesDate = txDate >= startDate && txDate <= endDate;
@@ -92,7 +72,7 @@ function Cashbook() {
         amount: tx.originalAmount,
         account: getAccountDetails(tx.bankAccountId),
         type: tx.type,
-        category: tx.type === 'incoming' ? getPaymentCategory(tx.relatedPaymentId) : getExpenseCategory(tx.description),
+        category: tx.category,
         description: tx.description,
     }));
 
@@ -281,10 +261,254 @@ function Cashbook() {
   );
 }
 
+function TrialBalance() {
+    const { transactions } = useAppContext();
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+    const { balanceArray, totalDebits, totalCredits } = useMemo(() => {
+        const startDate = startOfYear(new Date(selectedYear, 0, 1));
+        const endDate = endOfYear(new Date(selectedYear, 11, 31));
+
+        const filteredTransactions = transactions.filter(tx => {
+            const txDate = new Date(tx.date);
+            return txDate >= startDate && txDate <= endDate;
+        });
+
+        const balanceMap = new Map<StatementCategory, { debits: number, credits: number }>();
+
+        filteredTransactions.forEach(tx => {
+            if (!balanceMap.has(tx.category)) {
+                balanceMap.set(tx.category, { debits: 0, credits: 0 });
+            }
+            const entry = balanceMap.get(tx.category)!;
+            if (tx.type === 'outgoing') {
+                entry.debits += tx.amount;
+            } else {
+                entry.credits += tx.amount;
+            }
+        });
+
+        const balanceArray = Array.from(balanceMap, ([category, balances]) => ({
+            category,
+            ...balances,
+        })).sort((a,b) => a.category.localeCompare(b.category));
+
+        const totalDebits = balanceArray.reduce((sum, item) => sum + item.debits, 0);
+        const totalCredits = balanceArray.reduce((sum, item) => sum + item.credits, 0);
+
+        return { balanceArray, totalDebits, totalCredits };
+    }, [selectedYear, transactions]);
+
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle>Trial Balance</CardTitle>
+                        <CardDescription>A summary of debit and credit balances by category for the selected year.</CardDescription>
+                    </div>
+                     <Button variant="outline" onClick={() => handlePrint('trial-balance-print', `Trial Balance for ${selectedYear}`)}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent>
+                 <div className="flex flex-wrap gap-4 mb-6">
+                    <div>
+                        <label className="mr-2 font-semibold text-sm">Year:</label>
+                        <Select value={String(selectedYear)} onValueChange={e => setSelectedYear(parseInt(e))}>
+                            <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {Array.from({ length: 5 }, (_, i) => (
+                                <SelectItem key={i} value={String(new Date().getFullYear() - i)}>
+                                    {new Date().getFullYear() - i}
+                                </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <div id="trial-balance-print">
+                    <h1 className="text-xl font-bold mb-4">Trial Balance for {selectedYear}</h1>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Category</TableHead>
+                                <TableHead className="text-right">Debits (USD)</TableHead>
+                                <TableHead className="text-right">Credits (USD)</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {balanceArray.map(item => (
+                                <TableRow key={item.category}>
+                                    <TableCell className="capitalize">{item.category}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(item.debits)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(item.credits)}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                        <TableFooter>
+                            <TableRow className="font-bold text-lg">
+                                <TableCell>Total</TableCell>
+                                <TableCell className="text-right">{formatCurrency(totalDebits)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(totalCredits)}</TableCell>
+                            </TableRow>
+                        </TableFooter>
+                    </Table>
+                    <div className={`mt-6 p-4 rounded-md text-center font-semibold border ${totalDebits.toFixed(2) === totalCredits.toFixed(2) ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
+                         {totalDebits.toFixed(2) === totalCredits.toFixed(2) ? (
+                            <p>✅ The trial balance is in agreement! Debits equal Credits.</p>
+                        ) : (
+                            <p>⚠️ The trial balance is out of balance. Debits do not equal Credits.</p>
+                        )}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+
+function ProfitAndLoss() {
+    const { transactions } = useAppContext();
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+    const { revenueMap, expensesMap, totalRevenue, totalExpenses, netIncome } = useMemo(() => {
+        const startDate = startOfYear(new Date(selectedYear, 0, 1));
+        const endDate = endOfYear(new Date(selectedYear, 11, 31));
+
+        const filteredTransactions = transactions.filter(tx => {
+            const txDate = new Date(tx.date);
+            return txDate >= startDate && txDate <= endDate;
+        });
+
+        const revenueMap = filteredTransactions
+            .filter(tx => tx.type === 'incoming')
+            .reduce((acc, tx) => {
+                acc[tx.category] = (acc[tx.category] || 0) + tx.amount;
+                return acc;
+            }, {} as Record<StatementCategory, number>);
+
+        const expensesMap = filteredTransactions
+            .filter(tx => tx.type === 'outgoing')
+            .reduce((acc, tx) => {
+                acc[tx.category] = (acc[tx.category] || 0) + tx.amount;
+                return acc;
+            }, {} as Record<StatementCategory, number>);
+        
+        const totalRevenue = Object.values(revenueMap).reduce((sum, amount) => sum + amount, 0);
+        const totalExpenses = Object.values(expensesMap).reduce((sum, amount) => sum + amount, 0);
+        const netIncome = totalRevenue - totalExpenses;
+
+        return { revenueMap, expensesMap, totalRevenue, totalExpenses, netIncome };
+    }, [selectedYear, transactions]);
+
+    return (
+        <Card>
+             <CardHeader>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle>Profit & Loss Statement</CardTitle>
+                        <CardDescription>A summary of revenues and expenses for the selected year.</CardDescription>
+                    </div>
+                     <Button variant="outline" onClick={() => handlePrint('p-and-l-print', `Profit & Loss Statement for ${selectedYear}`)}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent>
+                 <div className="flex flex-wrap gap-4 mb-6">
+                    <div>
+                        <label className="mr-2 font-semibold text-sm">Year:</label>
+                        <Select value={String(selectedYear)} onValueChange={e => setSelectedYear(parseInt(e))}>
+                            <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {Array.from({ length: 5 }, (_, i) => (
+                                <SelectItem key={i} value={String(new Date().getFullYear() - i)}>
+                                    {new Date().getFullYear() - i}
+                                </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div id="p-and-l-print">
+                     <h1 className="text-xl font-bold mb-4">Profit & Loss Statement for {selectedYear}</h1>
+                     <div className="grid md:grid-cols-2 gap-8">
+                        <div>
+                            <h2 className="text-lg font-semibold border-b pb-2 mb-4">Revenue</h2>
+                            <Table>
+                                <TableBody>
+                                    {Object.entries(revenueMap).map(([category, amount]) =>(
+                                        <TableRow key={category}>
+                                            <TableCell className="capitalize">{category}</TableCell>
+                                            <TableCell className="text-right">{formatCurrency(amount)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                                <TableFooter>
+                                    <TableRow className="font-bold text-md">
+                                        <TableCell>Total Revenue</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(totalRevenue)}</TableCell>
+                                    </TableRow>
+                                </TableFooter>
+                            </Table>
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold border-b pb-2 mb-4">Expenses</h2>
+                            <Table>
+                                <TableBody>
+                                     {Object.entries(expensesMap).map(([category, amount]) =>(
+                                        <TableRow key={category}>
+                                            <TableCell className="capitalize">{category}</TableCell>
+                                            <TableCell className="text-right">{formatCurrency(amount)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                                <TableFooter>
+                                     <TableRow className="font-bold text-md">
+                                        <TableCell>Total Expenses</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(totalExpenses)}</TableCell>
+                                    </TableRow>
+                                </TableFooter>
+                            </Table>
+                        </div>
+                     </div>
+                     <div className={`mt-8 p-4 rounded-md text-center font-bold border ${netIncome >= 0 ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
+                        <p className="text-lg">Net {netIncome >= 0 ? 'Income' : 'Loss'}</p>
+                        <p className="text-3xl">{formatCurrency(netIncome)}</p>
+                    </div>
+                </div>
+
+            </CardContent>
+        </Card>
+    )
+
+}
+
 
 export default function StatementsPage() {
-    // For now, we only have the Cashbook. We can add more statements later.
-    return <Cashbook />;
+    return (
+        <Tabs defaultValue="cashbook" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="cashbook">Cashbook</TabsTrigger>
+                <TabsTrigger value="trial_balance">Trial Balance</TabsTrigger>
+                <TabsTrigger value="profit_loss">Profit & Loss</TabsTrigger>
+            </TabsList>
+            <TabsContent value="cashbook" className="mt-6">
+                <Cashbook />
+            </TabsContent>
+            <TabsContent value="trial_balance" className="mt-6">
+                <TrialBalance />
+            </TabsContent>
+            <TabsContent value="profit_loss" className="mt-6">
+                <ProfitAndLoss />
+            </TabsContent>
+        </Tabs>
+    );
 }
 
     

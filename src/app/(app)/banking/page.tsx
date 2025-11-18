@@ -43,7 +43,7 @@ import {
 import { useAppContext } from '@/context/app-context';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, groupTransactionsByAccount } from '@/lib/utils';
-import type { Transaction } from '@/lib/types';
+import type { Transaction, StatementCategory } from '@/lib/types';
 import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import {
   AlertDialog,
@@ -63,12 +63,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { useUser } from '@/firebase/auth/use-user';
+import { statementCategories } from '@/lib/types';
 
 
 const expenseFormSchema = z.object({
   bankAccountId: z.string({ required_error: 'Please select a bank account.' }),
   description: z.string().min(3, { message: 'Description is too short.' }),
   amount: z.coerce.number().positive({ message: 'Amount must be positive.' }),
+  category: z.enum(statementCategories, { required_error: 'Please select a category.' }),
 });
 
 function RecordExpense() {
@@ -79,6 +81,7 @@ function RecordExpense() {
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
         description: '',
+        category: 'other',
     }
   });
 
@@ -100,13 +103,14 @@ function RecordExpense() {
       originalAmount: values.amount,
       recordedById: user.uid,
       recordedBy: user.displayName || user.email || 'Unknown User',
+      category: values.category,
     };
     await addTransaction(newTransaction);
     toast({
       title: 'Expense Recorded',
       description: `${formatCurrency(values.amount, bankAccount.currency)} has been recorded as an expense.`,
     });
-    form.reset({ description: '', amount: undefined, bankAccountId: undefined });
+    form.reset({ description: '', amount: undefined, bankAccountId: undefined, category: 'other' });
   }
 
   return (
@@ -166,6 +170,24 @@ function RecordExpense() {
                   <FormControl>
                     <Input type="number" placeholder="e.g., 75.50" {...field} value={field.value ?? ''} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {statementCategories.filter(c => !['tuition', 'levy', 'building', 'exam'].includes(c)).map(c => (
+                        <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -231,6 +253,7 @@ function DailyDeposits() {
             originalAmount: total,
             recordedById: user.uid,
             recordedBy: user.displayName || user.email || 'Unknown User',
+            category: 'other', // Or derive a more specific category if possible
         };
         await addTransaction(newTransaction);
 
@@ -325,7 +348,9 @@ function TransactionHistory() {
     const getAccountBalance = (accountId: string) => {
         const accountTransactions = groupedTransactions[accountId] || [];
         return accountTransactions.reduce((balance, t) => {
-            return t.type === 'incoming' ? balance + t.originalAmount : balance - t.originalAmount;
+            // Note: we use originalAmount here because 'amount' is always in USD for consistency in financial reports
+            const amount = t.type === 'incoming' ? t.originalAmount : -t.originalAmount;
+            return balance + amount;
         }, 0);
     }
 
@@ -364,6 +389,7 @@ function TransactionHistory() {
                                                 {t.type === 'incoming' ? <ArrowDownCircle className="h-4 w-4 text-green-500" /> : <ArrowUpCircle className="h-4 w-4 text-red-500" />}
                                                 <span>{t.description}</span>
                                             </div>
+                                             <Badge variant="outline" className="capitalize mt-1">{t.category}</Badge>
                                         </TableCell>
                                         <TableCell>{t.recordedBy}</TableCell>
                                         <TableCell className={`text-right font-medium ${t.type === 'incoming' ? 'text-green-600' : 'text-red-600'}`}>

@@ -49,7 +49,7 @@ import {
 import { useAppContext } from '@/context/app-context';
 import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getPaymentCategory } from '@/lib/utils';
 import type { Payment, Student, Transaction } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -219,7 +219,10 @@ export default function PaymentsPage() {
                 amount: amountInUSD,
                 currency: bankAccount.currency,
                 originalAmount: values.amount,
-                relatedPaymentId: paymentRef?.id
+                relatedPaymentId: paymentRef?.id,
+                recordedById: user.uid,
+                recordedBy: user.displayName || user.email || 'Unknown User',
+                category: getPaymentCategory(newPayment as Payment)
             };
             await addTransaction(newTransaction);
         }

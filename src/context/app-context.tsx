@@ -1,12 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
-import type { Student, Payment, BankAccount, Transaction, ExchangeRate, Note } from '@/lib/types';
+import type { Student, Payment, BankAccount, Transaction, ExchangeRate, Note, StatementCategory } from '@/lib/types';
 import { useCollection, useDoc } from '@/firebase/firestore/hooks';
 import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference, deleteDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { getExpenseCategory, getPaymentCategory } from '@/lib/utils';
 
 
 interface AppContextType {
@@ -24,7 +25,7 @@ interface AppContextType {
   addBankAccount: (account: Omit<BankAccount, 'id'>) => Promise<void>;
 
   transactions: Transaction[];
-  addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'category'> & {category?: StatementCategory}) => Promise<void>;
 
   exchangeRate: ExchangeRate | null;
   setExchangeRate: (rate: number) => Promise<void>;
@@ -86,12 +87,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
   }
 
-  const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
+  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'category'> & {category?: StatementCategory}) => {
     if (!firestore) return;
+
+    let category: StatementCategory;
+    if (transaction.category) {
+        category = transaction.category;
+    } else if (transaction.type === 'incoming' && transaction.relatedPaymentId) {
+        const payment = payments.find(p => p.id === transaction.relatedPaymentId);
+        category = getPaymentCategory(payment);
+    } else {
+        category = getExpenseCategory(transaction.description);
+    }
+    
+    const finalTransaction = { ...transaction, category };
+
     const ref = collection(firestore, 'transactions');
-    addDoc(ref, transaction)
+    addDoc(ref, finalTransaction)
       .catch((err) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'create', requestResourceData: transaction }));
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'create', requestResourceData: finalTransaction }));
       });
   }
   

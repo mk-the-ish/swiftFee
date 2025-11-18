@@ -1,4 +1,5 @@
 
+
 export type Grade = 'R' | 'ECD A' | 'ECD B' | '1' | '2' | '3' | '4' | '5' | '6' | '7';
 
 export type Class = 'blue' | 'brown' | 'green' |'maroon'|'orange'|'pink'|'purple'|'red'|'white'|'yellow';
@@ -10,6 +11,8 @@ export const classColors: Class[] = ['blue', 'brown', 'green', 'maroon', 'orange
 export type FeeType = 'tuition' | 'levy' | 'building' | 'exam';
 
 export type StatementCategory = FeeType | 'stationery' | 'salaries' | 'utilities' | 'maintenance' | 'other';
+
+export const statementCategories: StatementCategory[] = ['tuition', 'levy', 'building', 'exam', 'stationery', 'salaries', 'utilities', 'maintenance', 'other'];
 
 export type PaymentMethod = 'Cash' | 'Bank Transfer' | 'Ecocash';
 
@@ -69,6 +72,7 @@ export type Transaction = {
   relatedPaymentId?: string;
   recordedById: string;
   recordedBy: string;
+  category: StatementCategory;
 };
 
 export type ExchangeRate = {
