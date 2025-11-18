@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Transaction, Payment, StatementCategory } from "./types";
+import type { Transaction, Payment, StatementCategory, Class } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -73,3 +73,18 @@ export function getExpenseCategory(description: string): StatementCategory {
     if (lowerDesc.includes('maintenance') || lowerDesc.includes('repair')) return 'maintenance';
     return 'other';
 }
+
+export const gradeProgression: string[] = ['R','ECD A', 'ECD B', '1', '2', '3', '4', '5', '6', '7'];
+
+export const classIdMap: Record<Class, string> = {
+    'blue': '00',
+    'brown': '01',
+    'green': '02',
+    'maroon': '03',
+    'orange': '04',
+    'pink': '05',
+    'purple': '06',
+    'red': '07',
+    'white': '08',
+    'yellow': '09'
+};

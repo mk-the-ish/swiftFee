@@ -1,13 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
-import type { Student, Payment, BankAccount, Transaction, ExchangeRate, Note, StatementCategory } from '@/lib/types';
+import type { Student, Payment, BankAccount, Transaction, ExchangeRate, Note, StatementCategory, Grade } from '@/lib/types';
 import { useCollection, useDoc } from '@/firebase/firestore/hooks';
 import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference, deleteDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { getExpenseCategory, getPaymentCategory } from '@/lib/utils';
+import { getExpenseCategory, getPaymentCategory, classIdMap, gradeProgression } from '@/lib/utils';
 
 
 interface AppContextType {
@@ -17,6 +17,7 @@ interface AppContextType {
   updateStudentBalances: (studentId: string, feeType: 'tuition' | 'levy' | 'building', amount: number) => Promise<void>;
   bulkUpgradeGrades: () => Promise<void>;
   bulkBillStudents: (values: { tuition: number; levy: number; buildingFund: number; }) => Promise<void>;
+  bulkUpdateStudentIds: () => Promise<void>;
 
   payments: Payment[];
   addPayment: (payment: Omit<Payment, 'id'>) => Promise<DocumentReference | undefined>;
@@ -38,8 +39,6 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
-
-const gradeProgression = ['ECD A', 'ECD B', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7'];
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
@@ -133,9 +132,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     students.forEach(student => {
       if (student.status === 'active') {
         const studentRef = doc(firestore, 'students', student.id);
-        const currentGradeIndex = gradeProgression.indexOf(student.grade);
+        const currentGradeIndex = gradeProgression.indexOf(student.grade as Grade);
         
-        if (student.grade === 'Grade 7') {
+        if (student.grade === '7') {
             batch.update(studentRef, { status: 'graduated' });
         } else {
             const nextGradeIndex = currentGradeIndex + 1;
@@ -183,6 +182,54 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           errorEmitter.emit('permission-error', new FirestorePermissionError({ path: '/payments', operation: 'update', requestResourceData: { 'note': 'mark as deposited' } }));
       });
   };
+
+  const bulkUpdateStudentIds = async () => {
+    if (!firestore) return;
+
+    const batch = writeBatch(firestore);
+    const studentsCollection = collection(firestore, "students");
+
+    // 1. Delete all existing students
+    for (const student of students) {
+        const studentRef = doc(studentsCollection, student.id);
+        batch.delete(studentRef);
+    }
+    
+    // 2. Group students by grade and class
+    const studentsByClass = students.reduce((acc, student) => {
+        const key = `${student.grade}-${student.class}`;
+        if (!acc[key]) {
+            acc[key] = [];
+        }
+        acc[key].push(student);
+        return acc;
+    }, {} as Record<string, Student[]>);
+
+    // 3. Generate new IDs and add students back
+    for (const classGroup of Object.values(studentsByClass)) {
+        classGroup.forEach((student, index) => {
+            const currentYear = new Date().getFullYear();
+            const gradeIndex = gradeProgression.indexOf(student.grade as Grade);
+            const yearsToGraduate = gradeProgression.length - 1 - gradeIndex;
+            const graduationYear = (currentYear + yearsToGraduate).toString().slice(-2);
+            
+            const classCode = classIdMap[student.class] || '99';
+            const studentIndex = (index + 1).toString().padStart(2, '0');
+            
+            const newId = `MP${graduationYear}${classCode}${studentIndex}`;
+            
+            const newStudentData = { ...student, id: newId };
+            const newStudentRef = doc(studentsCollection, newId);
+            batch.set(newStudentRef, newStudentData);
+        });
+    }
+
+    try {
+        await batch.commit();
+    } catch (err) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: '/students', operation: 'write', requestResourceData: { 'note': 'bulk student ID update' } }));
+    }
+  };
   
   const addPayment = async (payment: Omit<Payment, 'id'>): Promise<DocumentReference | undefined> => { 
       if (firestore) {
@@ -222,6 +269,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateStudentBalances,
     bulkUpgradeGrades,
     bulkBillStudents,
+    bulkUpdateStudentIds,
     payments,
     addPayment,
     bankAccounts,

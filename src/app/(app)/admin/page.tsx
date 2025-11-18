@@ -297,14 +297,65 @@ function BankAccountManagement() {
     );
 }
 
+function StudentIDGeneration() {
+  const { bulkUpdateStudentIds } = useAppContext();
+  const { toast } = useToast();
+
+  const handleIdGeneration = async () => {
+    await bulkUpdateStudentIds();
+    toast({
+      title: 'Student IDs Updated',
+      description: 'All student IDs have been regenerated successfully.',
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Generate Student IDs</CardTitle>
+        <CardDescription>
+          This action will regenerate IDs for all students based on the new format (MPYYCCNN). This is a one-time operation.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">
+            Example: A student in Grade 7 Blue class graduating in 2025 will have an ID like `MP250001`.
+        </p>
+      </CardContent>
+      <CardFooter>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive">Generate New IDs for All Students</Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete all existing students and recreate them with new IDs based on the specified format. Related payment records will be lost.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleIdGeneration}>
+                Yes, generate new IDs
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </CardFooter>
+    </Card>
+  );
+}
+
 
 export default function AdminPage() {
   return (
     <Tabs defaultValue="billing" className="w-full">
-      <TabsList className="grid w-full grid-cols-3">
+      <TabsList className="grid w-full grid-cols-4">
         <TabsTrigger value="billing">New Term Billing</TabsTrigger>
         <TabsTrigger value="upgrade">New Year Upgrade</TabsTrigger>
         <TabsTrigger value="banks">Bank Accounts</TabsTrigger>
+        <TabsTrigger value="ids">Student IDs</TabsTrigger>
       </TabsList>
       <TabsContent value="billing" className="mt-6">
         <NewTermBilling />
@@ -314,6 +365,9 @@ export default function AdminPage() {
       </TabsContent>
       <TabsContent value="banks" className="mt-6">
         <BankAccountManagement />
+      </TabsContent>
+      <TabsContent value="ids" className="mt-6">
+        <StudentIDGeneration />
       </TabsContent>
     </Tabs>
   );

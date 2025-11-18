@@ -2,9 +2,22 @@ export type Grade = 'R' | 'ECD A' | 'ECD B' | '1' | '2' | '3' | '4' | '5' | '6' 
 
 export type Class = 'blue' | 'brown' | 'green' |'maroon'|'orange'|'pink'|'purple'|'red'|'white'|'yellow';
 
-export const gradeProgression: Grade[] = ['R','ECD A', 'ECD B', '1', '2', '3', '4', '5', '6', '7'];
+export const gradeProgression: string[] = ['R','ECD A', 'ECD B', '1', '2', '3', '4', '5', '6', '7'];
 
 export const classColors: Class[] = ['blue', 'brown', 'green', 'maroon', 'orange', 'pink', 'purple', 'red', 'white', 'yellow'];
+
+export const classIdMap: Record<Class, string> = {
+    'blue': '00',
+    'brown': '01',
+    'green': '02',
+    'maroon': '03',
+    'orange': '04',
+    'pink': '05',
+    'purple': '06',
+    'red': '07',
+    'white': '08',
+    'yellow': '09'
+};
 
 export type FeeType = 'tuition' | 'levy' | 'building' | 'exam';
 

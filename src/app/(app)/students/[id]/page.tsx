@@ -117,7 +117,7 @@ function InvoiceDialog({ student, bankAccounts }: { student: Student, bankAccoun
                                     <span className="font-medium">Quote Date:</span> {format(new Date(), 'dd/MM/yyyy')}
                                 </div>
                                 <div>
-                                    <span className="font-medium">Invoice Number:</span> MK{student.id.substring(0,4).toUpperCase()}{new Date().getFullYear()}
+                                    <span className="font-medium">Invoice Number:</span> {student.id}
                                 </div>
                             </div>
                         </section>
