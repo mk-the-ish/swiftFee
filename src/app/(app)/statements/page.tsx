@@ -340,8 +340,8 @@ function TrialBalance() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {balanceArray.map(item => (
-                                <TableRow key={item.category}>
+                            {balanceArray.map((item, index) => (
+                                <TableRow key={`${item.category}-${index}`}>
                                     <TableCell className="capitalize">{item.category}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(item.debits)}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(item.credits)}</TableCell>
