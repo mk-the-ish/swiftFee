@@ -44,8 +44,8 @@ function Cashbook() {
   const { bankAccounts, transactions, payments } = useAppContext();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedAccount, setSelectedAccount] = useState('');
-  const [selectedCurrency, setSelectedCurrency] = useState('');
+  const [selectedAccount, setSelectedAccount] = useState('all-accounts');
+  const [selectedCurrency, setSelectedCurrency] = useState('all-currencies');
 
   const { incomingData, outgoingData, categories } = useMemo(() => {
     const startDate = startOfMonth(new Date(selectedYear, selectedMonth - 1));
@@ -59,7 +59,14 @@ function Cashbook() {
     const getPaymentCategory = (paymentId?: string): StatementCategory | 'other' => {
         if (!paymentId) return 'other';
         const payment = payments.find(p => p.id === paymentId);
-        return payment ? payment.feeType : 'other';
+        if (!payment) return 'other';
+        
+        // Ensure feeType is a valid StatementCategory
+        const validCategories: StatementCategory[] = ['tuition', 'levy', 'building', 'exam', 'stationery', 'salaries', 'utilities', 'maintenance', 'other'];
+        if (validCategories.includes(payment.feeType as StatementCategory)) {
+            return payment.feeType as StatementCategory;
+        }
+        return 'other';
     }
     
     const getExpenseCategory = (description: string): StatementCategory => {
@@ -74,8 +81,8 @@ function Cashbook() {
     const filteredTransactions = transactions.filter(tx => {
       const txDate = new Date(tx.date);
       const matchesDate = txDate >= startDate && txDate <= endDate;
-      const matchesAccount = !selectedAccount || tx.bankAccountId === selectedAccount;
-      const matchesCurrency = !selectedCurrency || tx.currency === selectedCurrency;
+      const matchesAccount = selectedAccount === 'all-accounts' || tx.bankAccountId === selectedAccount;
+      const matchesCurrency = selectedCurrency === 'all-currencies' || tx.currency === selectedCurrency;
       return matchesDate && matchesAccount && matchesCurrency;
     });
 
@@ -119,7 +126,7 @@ function Cashbook() {
 
   const debitTotals = calculateTotals(incomingData);
   const creditTotals = calculateTotals(outgoingData);
-  const currency = selectedCurrency || (bankAccounts.find(b => b.id === selectedAccount)?.currency) || 'USD';
+  const currency = selectedCurrency === 'all-currencies' ? 'USD' : selectedCurrency as 'USD' | 'ZWG';
 
 
   return (
@@ -177,7 +184,7 @@ function Cashbook() {
                     <SelectValue placeholder="All Accounts" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="">All Accounts</SelectItem>
+                    <SelectItem value="all-accounts">All Accounts</SelectItem>
                     {bankAccounts.map(acc => (
                         <SelectItem key={acc.id} value={acc.id}>
                             {acc.bankName} - {acc.accountNumber} ({acc.currency})
@@ -193,7 +200,7 @@ function Cashbook() {
                     <SelectValue placeholder="All" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="">All</SelectItem>
+                    <SelectItem value="all-currencies">All</SelectItem>
                     <SelectItem value="USD">USD</SelectItem>
                     <SelectItem value="ZWG">ZWG</SelectItem>
                 </SelectContent>
@@ -279,3 +286,5 @@ export default function StatementsPage() {
     // For now, we only have the Cashbook. We can add more statements later.
     return <Cashbook />;
 }
+
+    
