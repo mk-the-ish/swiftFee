@@ -9,6 +9,8 @@ export const classColors: Class[] = ['blue', 'brown', 'green', 'maroon', 'orange
 
 export type FeeType = 'tuition' | 'levy' | 'building' | 'exam';
 
+export type StatementCategory = FeeType | 'stationery' | 'salaries' | 'utilities' | 'maintenance' | 'other';
+
 export type PaymentMethod = 'Cash' | 'Bank Transfer' | 'Ecocash';
 
 export type StudentStatus = 'active' | 'graduated' | 'transferred';

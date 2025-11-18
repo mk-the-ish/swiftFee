@@ -38,7 +38,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Printer } from 'lucide-react';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency, handlePrint } from '@/lib/utils';
 import { format } from 'date-fns';
 import { DatePicker } from '@/components/ui/date-picker';
 import { useAppContext } from '@/context/app-context';
@@ -54,29 +54,6 @@ const reportFormSchema = z.object({
   startDate: z.date().optional(),
   endDate: z.date().optional(),
 });
-
-function handlePrint(printAreaId: string, title: string) {
-    const printContent = document.getElementById(printAreaId);
-    const windowUrl = 'about:blank';
-    const uniqueName = new Date().getTime();
-    const windowName = 'Print' + uniqueName;
-    const printWindow = window.open(windowUrl, windowName, 'left=50000,top=50000,width=0,height=0');
-
-    if (printWindow && printContent) {
-        printWindow.document.write(`<html><head><title>${title}</title>`);
-        printWindow.document.write('<link rel="stylesheet" href="https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css" />');
-        printWindow.document.write('<style>body { font-family: sans-serif; }</style>');
-        printWindow.document.write('</head><body class="p-8">');
-        printWindow.document.write(printContent.innerHTML);
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-        }, 1000);
-    }
-}
 
 
 function DebtorsList() {
