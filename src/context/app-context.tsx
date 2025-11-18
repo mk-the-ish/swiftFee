@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
-import type { Student, Payment, BankAccount, Transaction, ExchangeRate, Note, StatementCategory, Grade } from '@/lib/types';
+import type { Student, Payment, BankAccount, Transaction, ExchangeRate, Note, StatementCategory, Grade, Class } from '@/lib/types';
 import { useCollection, useDoc } from '@/firebase/firestore/hooks';
 import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference, deleteDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
@@ -60,13 +60,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
   };
 
-  const addStudent = async (student: Omit<Student, 'id'>) => {
-      if (!firestore) return;
-      const ref = collection(firestore, 'students');
-      addDoc(ref, student).catch(err => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'create', requestResourceData: student }));
+  const addStudent = async (studentData: Omit<Student, 'id'>) => {
+    if (!firestore) return;
+
+    // 1. Count existing students in the same grade and class
+    const studentsInClass = students.filter(s => s.grade === studentData.grade && s.class === studentData.class);
+    const studentIndex = (studentsInClass.length + 1).toString().padStart(2, '0');
+
+    // 2. Calculate graduation year
+    const currentYear = new Date().getFullYear();
+    const gradeIndex = gradeProgression.indexOf(studentData.grade as Grade);
+    const yearsToGraduate = gradeProgression.length - 1 - gradeIndex;
+    const graduationYear = (currentYear + yearsToGraduate).toString().slice(-2);
+
+    // 3. Get class code
+    const classCode = classIdMap[studentData.class as Class] || '99';
+
+    // 4. Assemble new ID
+    const newId = `MP${graduationYear}${classCode}${studentIndex}`;
+
+    const newStudent: Student = {
+        ...studentData,
+        id: newId,
+    };
+
+    const studentRef = doc(firestore, 'students', newId);
+
+    setDoc(studentRef, newStudent)
+      .catch((err) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: studentRef.path, operation: 'create', requestResourceData: newStudent }));
       });
-  }
+  };
 
   const updateStudent = async (id: string, data: Partial<Omit<Student, 'id'>>) => {
       if (!firestore) return;

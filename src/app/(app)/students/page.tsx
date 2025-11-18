@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/context/app-context';
 import { formatCurrency } from '@/lib/utils';
-import type { Student, StudentStatus } from '@/lib/types';
+import type { Student, StudentStatus, Class } from '@/lib/types';
 import { ArrowUpDown, PlusCircle } from 'lucide-react';
 import {
   Dialog,
@@ -52,7 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { gradeProgression } from '@/lib/types';
+import { gradeProgression, classColors } from '@/lib/types';
 import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +60,7 @@ import { Badge } from '@/components/ui/badge';
 const studentFormSchema = z.object({
   name: z.string().min(2, { message: 'Name is too short.' }),
   grade: z.enum(gradeProgression),
+  class: z.enum(classColors),
   dateOfBirth: z.date({ required_error: 'Date of birth is required.' }),
   gender: z.enum(['Male', 'Female']),
   guardianName: z.string().min(2, { message: "Guardian's name is too short." }),
@@ -88,6 +89,7 @@ export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boo
     } : {
       name: '',
       grade: 'ECD A',
+      class: 'blue',
       gender: 'Male',
       guardianName: '',
       guardianPhone: '',
@@ -142,13 +144,23 @@ export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boo
         <FormField control={form.control} name="name" render={({ field }) => (
             <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
         )}/>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
             <FormField control={form.control} name="grade" render={({ field }) => (
                 <FormItem>
                 <FormLabel>Grade</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select a grade" /></SelectTrigger></FormControl>
                     <SelectContent>{gradeProgression.map(grade => (<SelectItem key={grade} value={grade}>{grade}</SelectItem>))}</SelectContent>
+                </Select>
+                <FormMessage />
+                </FormItem>
+            )}/>
+            <FormField control={form.control} name="class" render={({ field }) => (
+                <FormItem>
+                <FormLabel>Class</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select a class" /></SelectTrigger></FormControl>
+                    <SelectContent>{classColors.map(c => (<SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>))}</SelectContent>
                 </Select>
                 <FormMessage />
                 </FormItem>
