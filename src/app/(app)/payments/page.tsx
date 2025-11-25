@@ -47,7 +47,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useAppContext } from '@/context/app-context';
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, getPaymentCategory } from '@/lib/utils';
 import type { Payment, Student, Transaction } from '@/lib/types';
@@ -55,29 +55,18 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const paymentFormSchema = z.object({
-  studentId: z.string({ required_error: 'Please select a student.' }),
+  studentId: z.string().min(1, 'Please select a student.'),
   receiptNumber: z.string().min(1, { message: 'Receipt number is required.' }),
   feeType: z.enum(['tuition', 'levy', 'building', 'exam'], {
-    required_error: 'Please select a fee type.',
+    message: 'Please select a fee type.',
   }),
   paymentMethod: z.enum(['Cash', 'Bank Transfer', 'Ecocash'], {
-    required_error: 'Please select a payment method.',
+    message: 'Please select a payment method.',
   }),
-  amount: z.coerce.number().positive({ message: 'Amount must be positive.' }),
+  amount: z.number().positive({ message: 'Amount must be positive.' }),
   currency: z.enum(['USD', 'ZWG']),
-  bankAccountId: z.string().optional(), // For direct bank payments
-  depositAccountId: z.string().optional(), // For cash deposits
-}).refine(data => {
-    if (data.paymentMethod === 'Cash') {
-        return !!data.depositAccountId;
-    }
-    if (data.paymentMethod === 'Bank Transfer' || data.paymentMethod === 'Ecocash') {
-        return !!data.bankAccountId;
-    }
-    return true;
-}, {
-    message: "A bank account must be selected for this payment method.",
-    path: ["bankAccountId"], // This error can be shown on both, but bankAccountId is fine
+  bankAccountId: z.string().optional(),
+  depositAccountId: z.string().optional(),
 });
 
 
@@ -197,7 +186,7 @@ export default function PaymentsPage() {
       date: new Date().toISOString(),
       receiptNumber: values.receiptNumber,
       deposited: values.paymentMethod !== 'Cash', // Cash payments are deposited later
-      recordedById: user.uid,
+      recordedById: user.id,
       recordedBy: user.displayName || user.email || 'Unknown User',
       ...(values.paymentMethod === 'Cash' 
             ? { depositAccountId: values.depositAccountId }
@@ -220,7 +209,7 @@ export default function PaymentsPage() {
                 currency: bankAccount.currency,
                 originalAmount: values.amount,
                 relatedPaymentId: paymentRef?.id,
-                recordedById: user.uid,
+                recordedById: user.id,
                 recordedBy: user.displayName || user.email || 'Unknown User',
                 category: getPaymentCategory(newPayment as Payment)
             };

@@ -1,8 +1,7 @@
-
 'use client';
 
-import React, { useState } from 'react';
-import { useParams, notFound } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAppContext } from '@/context/app-context';
 import {
   Card,
@@ -36,7 +35,8 @@ import { formatCurrency } from '@/lib/utils';
 import { User, Cake, Phone, Home, Printer, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Student } from '@/lib/types';
-import { AddStudentForm } from '../page';
+// Import the form from the shared component file
+import { AddStudentForm } from '@/components/ui/add-student-form';
 import { Logo } from '@/components/icons';
 
 function InfoCard({ icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
@@ -201,14 +201,15 @@ function EditStudentDialog({ student }: { student: Student }) {
 }
 
 export default function StudentProfilePage() {
-  const { id } = useParams();
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id'); // Use Query Param instead of Dynamic Route
+  
   const { students, payments, bankAccounts } = useAppContext();
-  const [isEditOpen, setIsEditOpen] = useState(false);
 
   const student = students.find((s) => s.id === id);
   const studentPayments = payments.filter((p) => p.studentId === id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  if (!student) {
+  if (!id || !student) {
     return (
         <div className="flex h-screen w-full items-center justify-center">
             <div className="text-center">

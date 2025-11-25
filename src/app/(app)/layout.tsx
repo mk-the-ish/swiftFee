@@ -27,11 +27,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { AppProvider } from '@/context/app-context';
 import { Logo } from '@/components/icons';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
-import { useUser } from '@/firebase/auth/use-user';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { useUser } from '@/hooks/use-user';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -62,8 +59,7 @@ function getPageTitle(pathname: string): string {
     return pageTitles[pathname] || 'SwiftFee Manager';
 }
 
-
-function AppLayoutContent({
+export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -191,19 +187,4 @@ function AppLayoutContent({
       </div>
     </div>
   )
-}
-
-export default function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <FirebaseClientProvider>
-      <AppProvider>
-        <AppLayoutContent>{children}</AppLayoutContent>
-        <FirebaseErrorListener />
-      </AppProvider>
-    </FirebaseClientProvider>
-  );
 }

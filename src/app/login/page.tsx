@@ -4,18 +4,18 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useUser } from '@/firebase/auth/use-user';
 import { Logo } from '@/components/icons';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/hooks/use-user'; // Use new hook
 
 function LoginPageContent() {
     const { user, loading, signInWithEmail, createUserWithEmail } = useUser();
     const router = useRouter();
     const { toast } = useToast();
     const [email, setEmail] = useState('');
+    const [displayName, setDisplayName] = useState('');
     const [password, setPassword] = useState('');
     const [isSignUp, setIsSignUp] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -31,7 +31,11 @@ function LoginPageContent() {
         setError(null);
         try {
             if (isSignUp) {
-                await createUserWithEmail(email, password);
+                if (!displayName) {
+                    setError("Name is required for sign up");
+                    return;
+                }
+                await createUserWithEmail(email, password, displayName);
                 toast({ title: 'Account Created', description: 'You have been successfully signed up.' });
             } else {
                 await signInWithEmail(email, password);
@@ -69,6 +73,19 @@ function LoginPageContent() {
                                 onChange={(e) => setEmail(e.target.value)}
                             />
                         </div>
+                        {isSignUp && (
+                            <div className="space-y-2">
+                                <Label htmlFor="name">Full Name</Label>
+                                <Input
+                                    id="name"
+                                    type="text"
+                                    placeholder="John Doe"
+                                    required
+                                    value={displayName}
+                                    onChange={(e) => setDisplayName(e.target.value)}
+                                />
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <Label htmlFor="password">Password</Label>
                             <Input
@@ -104,9 +121,6 @@ function LoginPageContent() {
 }
 
 export default function LoginPage() {
-    return (
-        <FirebaseClientProvider>
-            <LoginPageContent />
-        </FirebaseClientProvider>
-    )
+    // Note: AuthProvider is now in RootLayout, so we don't wrap it here.
+    return <LoginPageContent />
 }

@@ -23,7 +23,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { useAppContext } from '@/context/app-context';
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/hooks/use-user';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { Trash2 } from 'lucide-react';
@@ -68,7 +68,7 @@ export default function NotesPage() {
     await addNote({
       description: values.description,
       authorName: user.displayName || user.email,
-      authorId: user.uid,
+      authorId: user.id,
     });
 
     toast({
@@ -137,7 +137,7 @@ export default function NotesPage() {
                                 <span>
                                     <strong>{note.authorName}</strong> - {formatDistanceToNow(new Date(note.createdAt), { addSuffix: true })}
                                 </span>
-                                {user?.uid === note.authorId && (
+                                {user?.id === note.authorId && (
                                      <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">

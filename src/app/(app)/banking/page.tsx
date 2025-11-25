@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -62,15 +61,15 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/hooks/use-user';
 import { statementCategories } from '@/lib/types';
 
 
 const expenseFormSchema = z.object({
-  bankAccountId: z.string({ required_error: 'Please select a bank account.' }),
+  bankAccountId: z.string().min(1, 'Please select a bank account.'),
   description: z.string().min(3, { message: 'Description is too short.' }),
-  amount: z.coerce.number().positive({ message: 'Amount must be positive.' }),
-  category: z.enum(statementCategories, { required_error: 'Please select a category.' }),
+  amount: z.number().positive({ message: 'Amount must be positive.' }),
+  category: z.enum(statementCategories as unknown as [string, ...string[]], { message: 'Please select a category.' }),
 });
 
 function RecordExpense() {
@@ -101,16 +100,16 @@ function RecordExpense() {
       amount: values.amount,
       currency: bankAccount.currency,
       originalAmount: values.amount,
-      recordedById: user.uid,
+      recordedById: user.id,
       recordedBy: user.displayName || user.email || 'Unknown User',
-      category: values.category,
+      category: values.category as StatementCategory,
     };
     await addTransaction(newTransaction);
     toast({
       title: 'Expense Recorded',
       description: `${formatCurrency(values.amount, bankAccount.currency)} has been recorded as an expense.`,
     });
-    form.reset({ description: '', amount: undefined, bankAccountId: undefined, category: 'other' });
+    form.reset({ description: '', amount: 0, bankAccountId: '', category: 'other' });
   }
 
   return (
@@ -251,7 +250,7 @@ function DailyDeposits() {
             amount: total, // Assuming cash deposits are already in the correct currency of the account
             currency: currency,
             originalAmount: total,
-            recordedById: user.uid,
+            recordedById: user.id,
             recordedBy: user.displayName || user.email || 'Unknown User',
             category: 'other', // Or derive a more specific category if possible
         };

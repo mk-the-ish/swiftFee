@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -52,16 +51,18 @@ import {
 } from '@/components/ui/select';
 import { useAppContext } from '@/context/app-context';
 import { useToast } from '@/hooks/use-toast';
-import { gradeProgression } from '@/lib/types';
-import type { BankAccount, Grade } from '@/lib/types';
+import type { BankAccount } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 
 
 const billingFormSchema = z.object({
-  tuition: z.coerce.number().min(0),
-  levy: z.coerce.number().min(0),
-  buildingFund: z.coerce.number().min(0),
+  tuition: z.number().min(0),
+  levy: z.number().min(0),
+  buildingFund: z.number().min(0),
 });
+
+// Create a type for the form data to help TypeScript inference
+type BillingFormData = z.infer<typeof billingFormSchema>;
 
 const bankAccountFormSchema = z.object({
     bankName: z.string().min(2, "Bank name is too short"),
@@ -73,7 +74,9 @@ const bankAccountFormSchema = z.object({
 function NewTermBilling() {
   const { bulkBillStudents } = useAppContext();
   const { toast } = useToast();
-  const form = useForm<z.infer<typeof billingFormSchema>>({
+  
+  // Explicitly type the useForm hook with BillingFormData
+  const form = useForm<BillingFormData>({
     resolver: zodResolver(billingFormSchema),
     defaultValues: {
       tuition: 0,
@@ -82,7 +85,7 @@ function NewTermBilling() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof billingFormSchema>) {
+  async function onSubmit(values: BillingFormData) {
     await bulkBillStudents(values);
     toast({
       title: 'Term Billed Successfully',
@@ -108,7 +111,7 @@ function NewTermBilling() {
               name="tuition"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tuition Fee</FormLabel>
+                  <FormLabel>Tuition Fee</FormLabel> nm,.,
                   <FormControl>
                     <Input type="number" {...field} />
                   </FormControl>
