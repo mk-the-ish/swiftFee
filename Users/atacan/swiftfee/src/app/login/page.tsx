@@ -22,12 +22,8 @@ function LoginPageContent() {
 
     useEffect(() => {
         if (!loading && user) {
-            const isElectron = window.location.protocol === 'file:';
-            if (isElectron) {
-                router.replace('#/dashboard');
-            } else {
-                router.push('/dashboard');
-            }
+            // No more hash-based routing needed.
+            router.push('/dashboard');
         }
     }, [user, loading, router]);
 

@@ -1,0 +1,32 @@
+import type { Metadata } from 'next';
+import './globals.css';
+import { Toaster } from "@/components/ui/toaster";
+import { Providers } from "@/components/providers";
+
+export const metadata: Metadata = {
+  title: 'SwiftFee Manager',
+  description: 'A school management system for fees payments and financial statements.',
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self';" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      </head>
+      <body className="font-body antialiased" suppressHydrationWarning>
+        <Providers>
+          {children}
+        </Providers>
+        <Toaster />
+      </body>
+    </html>
+  );
+}

@@ -134,11 +134,6 @@ export default function StudentsPage() {
     </TableHead>
   );
 
-  const getLinkHref = (studentId: string) => {
-    const isElectron = typeof window !== 'undefined' && window.location.protocol === 'file:';
-    return isElectron ? `#/students/view?id=${studentId}` : `/students/view?id=${studentId}`;
-  }
-
   return (
     <Card>
       <CardHeader className='flex-row items-center justify-between'>
@@ -197,7 +192,7 @@ export default function StudentsPage() {
             {filteredAndSortedStudents.map((student) => (
               <TableRow key={student.id}>
                 <TableCell className="font-medium">
-                  <Link href={getLinkHref(student.id)} className="hover:underline text-primary">
+                  <Link href={`/students/view?id=${student.id}`} className="hover:underline text-primary">
                     {student.name}
                   </Link>
                 </TableCell>

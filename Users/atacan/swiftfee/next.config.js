@@ -2,8 +2,8 @@
 const nextConfig = {
   output: 'export', // CRITICAL: This forces the static export to 'out/'
   
-  // CRITICAL: This makes assets relative (./) so they work in file:// protocol
-  assetPrefix: './', 
+  // No longer needed with a custom protocol.
+  // assetPrefix: './', 
   
   images: {
     unoptimized: true, // CRITICAL: Local apps cannot use image optimization

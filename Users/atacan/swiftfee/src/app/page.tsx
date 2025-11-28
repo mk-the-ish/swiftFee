@@ -7,12 +7,8 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // For Electron's file:// protocol, we need to use hash-based routing
-    if (window.location.protocol === 'file:') {
-      router.replace('#/dashboard');
-    } else {
-      router.replace('/dashboard');
-    }
+    // We can now use standard routing.
+    router.replace('/dashboard');
   }, [router]);
 
   return (

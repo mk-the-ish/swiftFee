@@ -53,21 +53,12 @@ const pageTitles: { [key: string]: string } = {
 };
 
 function getPageTitle(pathname: string): string {
-    const isElectron = typeof window !== 'undefined' && window.location.protocol === 'file:';
-    const cleanPathname = isElectron ? pathname.substring(1) : pathname; // remove '#'
-
-    if (cleanPathname.startsWith('/students/')) {
+    if (pathname.startsWith('/students/view')) {
         return 'Student Profile';
     }
-    return pageTitles[cleanPathname] || 'SwiftFee Manager';
+    return pageTitles[pathname] || 'SwiftFee Manager';
 }
 
-function getLinkHref(href: string) {
-    if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
-        return `#${href}`;
-    }
-    return href;
-}
 
 export default function AppLayout({
   children,
@@ -80,13 +71,7 @@ export default function AppLayout({
 
   React.useEffect(() => {
     if (!loading && !user) {
-      const loginPath = getLinkHref('/login');
-      // In Electron, router.push needs the hash
-      if (window.location.protocol === 'file:') {
-        window.location.hash = '/login';
-      } else {
         router.push('/login');
-      }
     }
   }, [user, loading, router]);
 
@@ -100,9 +85,7 @@ export default function AppLayout({
   }
 
   const isCurrentPage = (itemHref: string) => {
-    const isElectron = typeof window !== 'undefined' && window.location.protocol === 'file:';
-    const currentPath = isElectron ? window.location.hash.substring(1) : pathname;
-    return currentPath.startsWith(itemHref);
+    return pathname.startsWith(itemHref);
   }
 
   return (
@@ -110,7 +93,7 @@ export default function AppLayout({
       <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
         <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
           <Link
-            href={getLinkHref("/dashboard")}
+            href="/dashboard"
             className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
           >
             <Logo className="h-5 w-5 transition-all group-hover:scale-110" />
@@ -121,7 +104,7 @@ export default function AppLayout({
               <Tooltip key={item.href}>
                 <TooltipTrigger asChild>
                   <Link
-                    href={getLinkHref(item.href)}
+                    href={item.href}
                     className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors md:h-8 md:w-8 ${
                       isCurrentPage(item.href)
                         ? 'bg-accent text-accent-foreground'
@@ -168,7 +151,7 @@ export default function AppLayout({
             <SheetContent side="left" className="sm:max-w-xs">
               <nav className="grid gap-6 text-lg font-medium">
                 <Link
-                  href={getLinkHref("#")}
+                  href="#"
                   className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
                 >
                   <Logo className="h-5 w-5 transition-all group-hover:scale-110" />
@@ -177,7 +160,7 @@ export default function AppLayout({
                 {navItems.map((item) => (
                   <Link
                     key={item.href}
-                    href={getLinkHref(item.href)}
+                    href={item.href}
                     className={`flex items-center gap-4 px-2.5 ${
                       isCurrentPage(item.href)
                         ? 'text-foreground'
@@ -200,7 +183,7 @@ export default function AppLayout({
             </SheetContent>
           </Sheet>
           <h1 className="text-xl font-semibold md:text-2xl">
-            {getPageTitle(typeof window !== 'undefined' ? window.location.hash : pathname)}
+            {getPageTitle(pathname)}
           </h1>
           <div className="relative ml-auto flex-1 md:grow-0" />
         </header>
