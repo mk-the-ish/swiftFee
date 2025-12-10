@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import type { Student, Payment, BankAccount, Transaction, ExchangeRate, Note, StatementCategory, Grade, Class } from '@/lib/types';
 import { useCollection, useDoc } from '@/firebase/firestore/hooks';
-import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -64,12 +64,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addStudent = async (studentData: Omit<Student, 'id'>) => {
     if (!firestore) return;
 
-    // 1. Count existing students in the same grade and class
-    const studentsInClass = students.filter(s => s.grade === studentData.grade && s.class === studentData.class);
+    // 1. Count existing students in the same grade and class for the relevant year
+    const isEntrantForNextYear = studentData.status === 'entrant';
+    const targetYearOffset = isEntrantForNextYear ? 1 : 0;
+
+    const studentsInClass = students.filter(s => {
+        const studentIsEntrant = s.status === 'entrant';
+        const studentYearOffset = studentIsEntrant ? 1 : 0;
+        return s.grade === studentData.grade && s.class === studentData.class && studentYearOffset === targetYearOffset;
+    });
     const studentIndex = (studentsInClass.length + 1).toString().padStart(2, '0');
 
     // 2. Calculate graduation year
-    const currentYear = new Date().getFullYear();
+    const currentYear = new Date().getFullYear() + targetYearOffset; // Adjust year for entrants
     const gradeIndex = gradeProgression.indexOf(studentData.grade as Grade);
     const yearsToGraduate = gradeProgression.length - 1 - gradeIndex;
     const graduationYear = (currentYear + yearsToGraduate).toString().slice(-2);
@@ -339,3 +346,5 @@ export function useAppContext() {
   }
   return context;
 }
+
+    
