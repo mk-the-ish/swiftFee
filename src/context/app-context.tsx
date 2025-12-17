@@ -18,6 +18,7 @@ interface AppContextType {
   updateStudentBalances: (studentId: string, feeType: 'tuition' | 'levy' | 'building', amount: number) => Promise<void>;
   bulkUpgradeGrades: () => Promise<void>;
   bulkBillStudents: (values: { tuition: number; levy: number; buildingFund: number; }) => Promise<void>;
+  billStudent: (studentId: string, values: { tuition: number; levy: number; buildingFund: number; }) => Promise<void>;
   bulkUpdateStudentIds: () => Promise<void>;
 
   payments: Payment[];
@@ -76,10 +77,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const studentIndex = (studentsInClass.length + 1).toString().padStart(2, '0');
 
     // 2. Calculate graduation year
-    const currentYear = new Date().getFullYear() + targetYearOffset; // Adjust year for entrants
+    const currentYear = new Date().getFullYear();
+    const adjustedCurrentYear = currentYear + (isEntrantForNextYear ? 1 : 0);
     const gradeIndex = gradeProgression.indexOf(studentData.grade as Grade);
     const yearsToGraduate = gradeProgression.length - 1 - gradeIndex;
-    const graduationYear = (currentYear + yearsToGraduate).toString().slice(-2);
+    const graduationYear = (adjustedCurrentYear + yearsToGraduate).toString().slice(-2);
 
     // 3. Get class code
     const classCode = classIdMap[studentData.class as Class] || '99';
@@ -195,6 +197,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     batch.commit()
         .catch((err) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: '/students', operation: 'update', requestResourceData: { 'note': 'bulk grade upgrade' } }));
+        });
+  };
+
+  const billStudent = async (studentId: string, values: { tuition: number; levy: number; buildingFund: number; }) => {
+    if (!firestore) return;
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    
+    const studentRef = doc(firestore, 'students', studentId);
+    const updateData = {
+        tuitionOwing: student.tuitionOwing + values.tuition,
+        levyOwing: student.levyOwing + values.levy,
+        buildingFundOwing: student.buildingFundOwing + values.buildingFund,
+    };
+    updateDoc(studentRef, updateData)
+        .catch((err) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: studentRef.path, operation: 'update', requestResourceData: updateData }));
         });
   };
 
@@ -317,6 +336,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateStudentBalances,
     bulkUpgradeGrades,
     bulkBillStudents,
+    billStudent,
     bulkUpdateStudentIds,
     payments,
     addPayment,
@@ -330,7 +350,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     notes,
     addNote,
     deleteNote,
-  }), [students, updateStudent, addStudent, payments, bankAccounts, transactions, exchangeRate, firestore, addBankAccount, addTransaction, bulkUpgradeGrades, bulkBillStudents, notes, addNote, deleteNote]);
+  }), [students, updateStudent, addStudent, payments, bankAccounts, transactions, exchangeRate, firestore, addBankAccount, addTransaction, bulkUpgradeGrades, bulkBillStudents, billStudent, notes, addNote, deleteNote]);
 
   return (
     <AppContext.Provider value={contextValue}>

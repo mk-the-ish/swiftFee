@@ -33,11 +33,112 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { formatCurrency } from '@/lib/utils';
-import { User, Cake, Phone, Home, Printer, Pencil } from 'lucide-react';
+import { User, Cake, Phone, Home, Printer, Pencil, FilePlus } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Student } from '@/lib/types';
 import { AddStudentForm } from '../page';
 import { Logo } from '@/components/icons';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+
+
+const billingFormSchema = z.object({
+  tuition: z.coerce.number().min(0),
+  levy: z.coerce.number().min(0),
+  buildingFund: z.coerce.number().min(0),
+});
+
+function BillStudentDialog({ student }: { student: Student }) {
+    const [open, setOpen] = useState(false);
+    const { billStudent } = useAppContext();
+    const { toast } = useToast();
+
+    const form = useForm<z.infer<typeof billingFormSchema>>({
+        resolver: zodResolver(billingFormSchema),
+        defaultValues: {
+            tuition: 0,
+            levy: 0,
+            buildingFund: 0,
+        },
+    });
+
+    async function onSubmit(values: z.infer<typeof billingFormSchema>) {
+        await billStudent(student.id, values);
+        toast({
+            title: 'Student Billed',
+            description: `${student.name} has been billed successfully.`
+        });
+        form.reset();
+        setOpen(false);
+    }
+    
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button><FilePlus className="mr-2 h-4 w-4" />Bill Student</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Bill {student.name}</DialogTitle>
+                    <DialogDescription>
+                        Enter the amounts to add to the student's outstanding balance.
+                    </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="tuition"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Tuition Fee</FormLabel>
+                                <FormControl>
+                                    <Input type="number" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="levy"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Levy</FormLabel>
+                                <FormControl>
+                                    <Input type="number" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="buildingFund"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Building Fund</FormLabel>
+                                <FormControl>
+                                    <Input type="number" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <DialogFooter className="mt-4">
+                            <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                            <Button type="submit">Add Bill</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 function InfoCard({ icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
     const Icon = icon;
@@ -245,8 +346,9 @@ export default function StudentProfilePage() {
                     <InfoCard icon={Phone} label="Guardian's Phone" value={student.guardianPhone} />
                     <InfoCard icon={Home} label="Address" value={student.address} />
                 </CardContent>
-                 <CardFooter>
+                 <CardFooter className="flex gap-2">
                     <InvoiceDialog student={student} bankAccounts={bankAccounts} />
+                    <BillStudentDialog student={student} />
                 </CardFooter>
             </Card>
             <Card className="mt-8">
@@ -268,7 +370,7 @@ export default function StudentProfilePage() {
                     </div>
                      <div className="flex justify-between items-center font-bold text-lg border-t pt-4">
                         <span>Total Owing</span>
-                        <span>{formatCurrency(totalOwing)}</span>
+                        <span className={totalOwing < 0 ? 'text-green-600' : ''}>{formatCurrency(totalOwing)}</span>
                     </div>
                 </CardContent>
             </Card>
