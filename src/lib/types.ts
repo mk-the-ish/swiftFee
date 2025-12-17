@@ -44,6 +44,8 @@ export type Student = {
   tuitionOwing: number;
   levyOwing: number;
   buildingFundOwing: number;
+  schoolId?: string; // Added for multi-school aggregation
+  schoolName?: string; // Added for multi-school aggregation
 };
 
 export type BankAccount = {
@@ -70,6 +72,8 @@ export type Payment = {
   deposited: boolean;
   recordedById: string;
   recordedBy: string;
+  schoolId?: string; // Added for multi-school aggregation
+  schoolName?: string; // Added for multi-school aggregation
 };
 
 export type Transaction = {
@@ -85,6 +89,8 @@ export type Transaction = {
   recordedById: string;
   recordedBy: string;
   category: StatementCategory;
+  schoolId?: string; // Added for multi-school aggregation
+  schoolName?: string; // Added for multi-school aggregation
 };
 
 export type ExchangeRate = {
@@ -98,4 +104,24 @@ export type Note = {
   authorName: string;
   createdAt: string;
   authorId: string;
+};
+
+export type UserRole = 'system_admin' | 'school_admin' | 'teacher';
+
+export type User = {
+  uid: string;
+  email: string;
+  displayName?: string;
+  role: UserRole;
+  schoolIds: string[];
+  defaultSchoolId?: string;
+  createdAt: string;
+};
+
+export type School = {
+  id: string;
+  name: string;
+  address?: string;
+  contactInfo?: string;
+  createdAt: string;
 };

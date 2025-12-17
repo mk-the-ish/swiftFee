@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useUser } from '@/firebase/auth/use-user';
+import { useDoc } from '@/firebase/firestore/hooks';
+import { doc, setDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import type { User } from '@/lib/types';
 import { Logo } from '@/components/icons';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Input } from '@/components/ui/input';
@@ -13,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 
 function LoginPageContent() {
     const { user, loading, signInWithEmail, createUserWithEmail } = useUser();
+    const firestore = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
     const [email, setEmail] = useState('');
@@ -20,19 +25,76 @@ function LoginPageContent() {
     const [isSignUp, setIsSignUp] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const { data: userData } = useDoc<User>(
+        user?.uid && firestore ? doc(firestore, 'users', user.uid) : null
+    );
+
     useEffect(() => {
         if (!loading && user) {
-            router.push('/dashboard');
+            if (userData) {
+                // User document exists, proceed with normal flow
+                if (userData.role === 'system_admin') {
+                    router.push('/multi/dashboard');
+                } else if (userData.schoolIds.length > 1) {
+                    router.push('/select-school');
+                } else {
+                    router.push('/dashboard');
+                }
+            } else {
+                // No user document found - create a default one for testing
+                if (firestore) {
+                    setDoc(doc(firestore, 'users', user.uid), {
+                        uid: user.uid,
+                        email: user.email || '',
+                        displayName: user.email?.split('@')[0] || 'User',
+                        role: user.email === 'admin@swiftfee.com' ? 'system_admin' :
+                              user.email === 'schooladmin@swiftfee.com' ? 'school_admin' : 'teacher',
+                        schoolIds: user.email === 'admin@swiftfee.com' ? ['R9qIAQsQUfWOfOPivv2L', 'kmFuyCd2JPSmuyfwumJH'] :
+                                   user.email === 'schooladmin@swiftfee.com' ? ['R9qIAQsQUfWOfOPivv2L'] : [],
+                        defaultSchoolId: user.email === 'admin@swiftfee.com' ? 'R9qIAQsQUfWOfOPivv2L' :
+                                        user.email === 'schooladmin@swiftfee.com' ? 'R9qIAQsQUfWOfOPivv2L' : null,
+                        createdAt: new Date().toISOString(),
+                    }).then(() => {
+                        // After creating user document, redirect appropriately
+                        const role = user.email === 'admin@swiftfee.com' ? 'system_admin' :
+                                    user.email === 'schooladmin@swiftfee.com' ? 'school_admin' : 'teacher';
+                        if (role === 'system_admin') {
+                            router.push('/multi/dashboard');
+                        } else if (role === 'school_admin') {
+                            router.push('/dashboard');
+                        } else {
+                            router.push('/dashboard');
+                        }
+                    }).catch((error) => {
+                        console.error('Error creating user document:', error);
+                        router.push('/setup-accounts');
+                    });
+                } else {
+                    router.push('/setup-accounts');
+                }
+            }
         }
-    }, [user, loading, router]);
+    }, [user, loading, userData, router, firestore]);
 
     const handleAuthAction = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
         try {
             if (isSignUp) {
-                await createUserWithEmail(email, password);
-                toast({ title: 'Account Created', description: 'You have been successfully signed up.' });
+                const userCredential = await createUserWithEmail(email, password);
+                // Create user document in Firestore
+                if (firestore && userCredential.user) {
+                    await setDoc(doc(firestore, 'users', userCredential.user.uid), {
+                        uid: userCredential.user.uid,
+                        email: email,
+                        displayName: email.split('@')[0], // Use email prefix as display name
+                        role: 'teacher', // Default role, can be changed by admin
+                        schoolIds: [], // Empty by default, assigned by admin
+                        defaultSchoolId: null,
+                        createdAt: new Date().toISOString(),
+                    });
+                }
+                toast({ title: 'Account Created', description: 'Account created successfully! You can now log in.' });
             } else {
                 await signInWithEmail(email, password);
             }

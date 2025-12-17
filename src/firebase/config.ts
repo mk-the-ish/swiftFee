@@ -1,8 +1,8 @@
 export const firebaseConfig = {
-  "projectId": "studio-3169002325-13d11",
-  "appId": "1:665497598155:web:7ec1afe560ad5b8915834e",
-  "apiKey": "AIzaSyCrUTcCUVNGEf2iSvoU8Llj-18do6YDwIw",
-  "authDomain": "studio-3169002325-13d11.firebaseapp.com",
+  "projectId": "multischool-system-5b51f",
+  "appId": "1:638408134546:web:9716f1a6065eacf7b23b4b",
+  "apiKey": "AIzaSyAevfHU_BrCtr39k8anDxZ49edv-NeAp2E",
+  "authDomain": "multischool-system-5b51f.firebaseapp.com",
   "measurementId": "",
-  "messagingSenderId": "665497598155"
+  "messagingSenderId": "638408134546"
 };

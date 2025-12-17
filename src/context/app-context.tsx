@@ -3,7 +3,8 @@
 
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import type { Student, Payment, BankAccount, Transaction, ExchangeRate, Note, StatementCategory, Grade, Class } from '@/lib/types';
-import { useCollection, useDoc } from '@/firebase/firestore/hooks';
+import { useSchoolCollection, useDoc } from '@/firebase/firestore/hooks';
+import { useSchool } from '@/context/school-context';
 import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -43,13 +44,14 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
+  const { selectedSchoolId } = useSchool();
 
-  const { data: students = [] } = useCollection<Student>(firestore ? collection(firestore, 'students') : null);
-  const { data: payments = [] } = useCollection<Payment>(firestore ? collection(firestore, 'payments') : null);
-  const { data: bankAccounts = [] } = useCollection<BankAccount>(firestore ? collection(firestore, 'bankAccounts') : null);
-  const { data: transactions = [] } = useCollection<Transaction>(firestore ? collection(firestore, 'transactions') : null);
+  const { data: students = [] } = useSchoolCollection<Student>(selectedSchoolId, 'students');
+  const { data: payments = [] } = useSchoolCollection<Payment>(selectedSchoolId, 'payments');
+  const { data: bankAccounts = [] } = useSchoolCollection<BankAccount>(selectedSchoolId, 'bankAccounts');
+  const { data: transactions = [] } = useSchoolCollection<Transaction>(selectedSchoolId, 'transactions');
   const { data: exchangeRate } = useDoc<ExchangeRate>(firestore ? doc(firestore, 'settings', 'exchangeRate') : null);
-  const { data: notes = [] } = useCollection<Note>(firestore ? collection(firestore, 'notes') : null);
+  const { data: notes = [] } = useSchoolCollection<Note>(selectedSchoolId, 'notes');
 
   const setExchangeRate = async (rate: number) => {
     if (!firestore) return;
