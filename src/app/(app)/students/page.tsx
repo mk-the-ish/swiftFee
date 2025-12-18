@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/context/app-context';
 import { formatCurrency } from '@/lib/utils';
-import type { Student, StudentStatus, Class } from '@/lib/types';
+import type { Student, StudentStatus, Class, Grade } from '@/lib/types';
 import { ArrowUpDown, PlusCircle } from 'lucide-react';
 import {
   Dialog,
@@ -57,9 +57,26 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 
+// A custom hook to debounce a value
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 const studentFormSchema = z.object({
   name: z.string().min(2, { message: 'Name is too short.' }),
-  grade: z.enum(gradeProgression),
+  grade: z.enum(gradeProgression as [string, ...string[]]),
   class: z.enum(classColors),
   dateOfBirth: z.date({ required_error: 'Date of birth is required.' }),
   gender: z.enum(['Male', 'Female']),
@@ -85,6 +102,7 @@ export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boo
     resolver: zodResolver(studentFormSchema),
     defaultValues: isEditMode ? {
         ...studentToEdit,
+        grade: studentToEdit.grade as Grade,
         dateOfBirth: getInitialDate(studentToEdit.dateOfBirth),
     } : {
       name: '',
@@ -94,7 +112,7 @@ export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boo
       guardianName: '',
       guardianPhone: '',
       address: '',
-      status: 'active',
+      status: 'entrant',
       dateOfBirth: undefined,
     }
   });
@@ -103,6 +121,7 @@ export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boo
     if (isEditMode && studentToEdit) {
       form.reset({
         ...studentToEdit,
+        grade: studentToEdit.grade as Grade,
         dateOfBirth: getInitialDate(studentToEdit.dateOfBirth),
       });
     }
@@ -264,6 +283,7 @@ type SortKey = keyof Student | 'totalOwing';
 export default function StudentsPage() {
   const { students } = useAppContext();
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300); // Debounce search term
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
   const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<StudentStatus>('active');
@@ -302,13 +322,13 @@ export default function StudentsPage() {
     }
 
     return sortableStudents.filter((student) => {
-        const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = student.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
         const matchesGrade = gradeFilter === 'all' || student.grade === gradeFilter;
         const matchesStatus = student.status === statusFilter;
         return matchesSearch && matchesGrade && matchesStatus;
     });
 
-  }, [students, searchTerm, sortConfig, gradeFilter, statusFilter]);
+  }, [students, debouncedSearchTerm, sortConfig, gradeFilter, statusFilter]);
 
   const requestSort = (key: SortKey) => {
     let direction: 'ascending' | 'descending' = 'ascending';
