@@ -279,16 +279,18 @@ function AddStudentDialog() {
 }
 
 type SortKey = keyof Student | 'totalOwing';
+type SortableStudent = Student & { totalOwing: number };
 
 export default function StudentsPage() {
   const { students } = useAppContext();
   const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 300); // Debounce search term
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
   const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<StudentStatus>('active');
+  const [displayList, setDisplayList] = useState<SortableStudent[]>([]);
 
-  const filteredAndSortedStudents = useMemo(() => {
+  useEffect(() => {
     let sortableStudents = [...students].map(student => ({
       ...student,
       totalOwing: student.tuitionOwing + student.levyOwing + student.buildingFundOwing
@@ -300,33 +302,27 @@ export default function StudentsPage() {
         const valB = b[sortConfig.key as keyof typeof b];
         
         if (typeof valA === 'number' && typeof valB === 'number') {
-            if (valA < valB) {
-                return sortConfig.direction === 'ascending' ? -1 : 1;
-            }
-            if (valA > valB) {
-                return sortConfig.direction === 'ascending' ? 1 : -1;
-            }
+          return sortConfig.direction === 'ascending' ? valA - valB : valB - valA;
         }
         
         if (typeof valA === 'string' && typeof valB === 'string') {
-            if (valA.toLowerCase() < valB.toLowerCase()) {
-                return sortConfig.direction === 'ascending' ? -1 : 1;
-            }
-            if (valA.toLowerCase() > valB.toLowerCase()) {
-                return sortConfig.direction === 'ascending' ? 1 : -1;
-            }
+          return sortConfig.direction === 'ascending' 
+            ? valA.localeCompare(valB) 
+            : valB.localeCompare(valA);
         }
         
         return 0;
       });
     }
 
-    return sortableStudents.filter((student) => {
+    const filtered = sortableStudents.filter((student) => {
         const matchesSearch = student.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
         const matchesGrade = gradeFilter === 'all' || student.grade === gradeFilter;
         const matchesStatus = student.status === statusFilter;
         return matchesSearch && matchesGrade && matchesStatus;
     });
+
+    setDisplayList(filtered);
 
   }, [students, debouncedSearchTerm, sortConfig, gradeFilter, statusFilter]);
 
@@ -402,7 +398,7 @@ export default function StudentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAndSortedStudents.map((student) => (
+            {displayList.map((student) => (
               <TableRow key={student.id}>
                 <TableCell className="font-medium">
                   <Link href={`/students/${student.id}`} className="hover:underline text-primary">
@@ -417,7 +413,7 @@ export default function StudentsPage() {
                 <TableCell><Badge variant={student.status === 'active' || student.status === 'entrant' ? 'default' : 'secondary'} className="capitalize">{student.status}</Badge></TableCell>
               </TableRow>
             ))}
-             {filteredAndSortedStudents.length === 0 && (
+             {displayList.length === 0 && (
                 <TableRow>
                     <TableCell colSpan={7} className="text-center h-24">No students found.</TableCell>
                 </TableRow>
@@ -428,3 +424,5 @@ export default function StudentsPage() {
     </Card>
   );
 }
+
+    
