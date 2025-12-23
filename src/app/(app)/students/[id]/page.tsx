@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { useState } from 'react';
-import { useParams, notFound } from 'next/navigation';
+import React, 'use-client';
+import { useParams } from 'next/navigation';
 import { useAppContext } from '@/context/app-context';
 import {
   Card,
@@ -33,10 +33,10 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { formatCurrency } from '@/lib/utils';
-import { User, Cake, Phone, Home, Printer, Pencil, FilePlus } from 'lucide-react';
+import { User, Cake, Phone, Home, Printer, Pencil, FilePlus, X } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Student } from '@/lib/types';
-import { AddStudentForm } from '../page';
+import { AddStudentForm } from '../components/add-student-form';
 import { Logo } from '@/components/icons';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -53,7 +53,7 @@ const billingFormSchema = z.object({
 });
 
 function BillStudentDialog({ student }: { student: Student }) {
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = React.useState(false);
     const { billStudent } = useAppContext();
     const { toast } = useToast();
 
@@ -283,57 +283,20 @@ function InvoiceDialog({ student, bankAccounts }: { student: Student, bankAccoun
     )
 }
 
-function EditStudentDialog({ student }: { student: Student }) {
-    const [open, setOpen] = useState(false);
+function StudentProfileView({ student, onEdit }: { student: Student, onEdit: () => void }) {
+    const isValidDate = student.dateOfBirth && !isNaN(new Date(student.dateOfBirth).getTime());
+    const totalOwing = student.tuitionOwing + student.levyOwing + student.buildingFundOwing;
+    const { bankAccounts } = useAppContext();
+
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm"><Pencil className="mr-2 h-4 w-4" />Edit Student</Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-lg">
-                <DialogHeader>
-                    <DialogTitle>Edit Student</DialogTitle>
-                    <DialogDescription>Update the details for {student.name}.</DialogDescription>
-                </DialogHeader>
-                <AddStudentForm setOpen={setOpen} studentToEdit={student} />
-            </DialogContent>
-        </Dialog>
-    )
-}
-
-export default function StudentProfilePage() {
-  const { id } = useParams();
-  const { students, payments, bankAccounts } = useAppContext();
-  const [isEditOpen, setIsEditOpen] = useState(false);
-
-  const student = students.find((s) => s.id === id);
-  const studentPayments = payments.filter((p) => p.studentId === id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  if (!student) {
-    return (
-        <div className="flex h-screen w-full items-center justify-center">
-            <div className="text-center">
-                <h1 className="text-2xl font-bold">Student not found</h1>
-                <p className="text-muted-foreground">The student you are looking for does not exist.</p>
-            </div>
-        </div>
-    )
-  }
-  
-  const totalOwing = student.tuitionOwing + student.levyOwing + student.buildingFundOwing;
-
-  const isValidDate = student.dateOfBirth && !isNaN(new Date(student.dateOfBirth).getTime());
-
-  return (
-    <div className="grid gap-8 md:grid-cols-3">
-        <div className="md:col-span-1">
+        <div className="space-y-8">
             <Card>
                 <CardHeader className="flex flex-row justify-between items-start">
                     <div>
                         <CardTitle className="flex items-center gap-2">{student.name} <Badge variant={student.status === 'active' || student.status === 'entrant' ? 'default' : 'secondary'} className="capitalize">{student.status}</Badge></CardTitle>
                         <CardDescription>{student.grade}{student.class} - Student ID: {student.id}</CardDescription>
                     </div>
-                    <EditStudentDialog student={student} />
+                    <Button variant="outline" size="sm" onClick={onEdit}><Pencil className="mr-2 h-4 w-4" />Edit Student</Button>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <InfoCard icon={User} label="Gender" value={student.gender} />
@@ -351,7 +314,7 @@ export default function StudentProfilePage() {
                     <BillStudentDialog student={student} />
                 </CardFooter>
             </Card>
-            <Card className="mt-8">
+            <Card>
                 <CardHeader>
                     <CardTitle>Financial Summary</CardTitle>
                 </CardHeader>
@@ -374,6 +337,58 @@ export default function StudentProfilePage() {
                     </div>
                 </CardContent>
             </Card>
+        </div>
+    )
+}
+
+function StudentProfileEdit({ student, onCancel }: { student: Student, onCancel: () => void }) {
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle>Editing {student.name}</CardTitle>
+                        <CardDescription>Update the student's details below.</CardDescription>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={onCancel}>
+                        <X className="h-5 w-5" />
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <AddStudentForm studentToEdit={student} setOpen={(isOpen) => !isOpen && onCancel()} />
+            </CardContent>
+        </Card>
+    );
+}
+
+export default function StudentProfilePage() {
+  const { id } = useParams();
+  const { students, payments } = useAppContext();
+  const [isEditing, setIsEditing] = React.useState(false);
+
+  const student = students.find((s) => s.id === id);
+  const studentPayments = payments.filter((p) => p.studentId === id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  if (!student) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <div className="text-center">
+                <h1 className="text-2xl font-bold">Student not found</h1>
+                <p className="text-muted-foreground">The student you are looking for does not exist.</p>
+            </div>
+        </div>
+    )
+  }
+  
+  return (
+    <div className="grid gap-8 md:grid-cols-3">
+        <div className="md:col-span-1">
+            {isEditing ? (
+                <StudentProfileEdit student={student} onCancel={() => setIsEditing(false)} />
+            ) : (
+                <StudentProfileView student={student} onEdit={() => setIsEditing(true)} />
+            )}
         </div>
         <div className="md:col-span-2">
             <Card>
