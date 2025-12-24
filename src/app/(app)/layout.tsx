@@ -186,7 +186,6 @@ function AppLayoutContent({
             <h1 className="text-xl font-semibold md:text-2xl">
                 {getPageTitle(pathname)}
             </h1>
-            {user && <Badge variant="outline">UID: {user.uid}</Badge>}
           </div>
           <div className="relative ml-auto flex-1 md:grow-0" />
         </header>
