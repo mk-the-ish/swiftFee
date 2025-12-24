@@ -30,6 +30,7 @@ import {
   DialogTrigger,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { formatCurrency } from '@/lib/utils';
 import { User, Cake, Phone, Home, Printer, Pencil, FilePlus, X, Trash2 } from 'lucide-react';
@@ -50,11 +51,10 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
+  AlertDialogDescription as AlertDialogDescriptionComponent,
 } from '@/components/ui/alert-dialog';
 
 
@@ -419,10 +419,10 @@ function DeletePaymentDialog({ payment }: { payment: Payment }) {
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
+                    <AlertDialogDescriptionComponent>
                         This will permanently delete the payment of {formatCurrency(payment.amount, payment.currency)} from {payment.studentName}.
                         The amount will be added back to the student's owing balance. This action cannot be undone.
-                    </AlertDialogDescription>
+                    </AlertDialogDescriptionComponent>
                 </AlertDialogHeader>
                 <div className="space-y-2">
                     <Label htmlFor="password">Enter your password to confirm:</Label>
