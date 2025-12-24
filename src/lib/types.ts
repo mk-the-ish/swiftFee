@@ -22,9 +22,9 @@ export const classIdMap: Record<Class, string> = {
 
 export type FeeType = 'tuition' | 'levy' | 'building' | 'exam';
 
-export type StatementCategory = FeeType | 'stationery' | 'salaries' | 'utilities' | 'maintenance' | 'other';
+export type StatementCategory = FeeType | 'stationery' | 'salaries' | 'utilities' | 'maintenance' | 'projects' | 'other';
 
-export const statementCategories: StatementCategory[] = ['tuition', 'levy', 'building', 'exam', 'stationery', 'salaries', 'utilities', 'maintenance', 'other'];
+export const statementCategories: StatementCategory[] = ['tuition', 'levy', 'building', 'exam', 'stationery', 'salaries', 'utilities', 'maintenance', 'projects', 'other'];
 
 export type PaymentMethod = 'Cash' | 'Bank Transfer' | 'Ecocash';
 
@@ -108,4 +108,3 @@ export type AdminLog = {
     action: string;
     details: string;
 }
-

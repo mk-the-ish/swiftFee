@@ -73,6 +73,14 @@ const expenseFormSchema = z.object({
   category: z.enum(statementCategories, { required_error: 'Please select a category.' }),
 });
 
+const revenueFormSchema = z.object({
+  bankAccountId: z.string({ required_error: 'Please select a bank account.' }),
+  description: z.string().min(3, { message: 'Description is too short.' }),
+  amount: z.coerce.number().positive({ message: 'Amount must be positive.' }),
+  category: z.enum(statementCategories, { required_error: 'Please select a category.' }),
+});
+
+
 function RecordExpense() {
   const { bankAccounts, addTransaction } = useAppContext();
   const { toast } = useToast();
@@ -201,6 +209,136 @@ function RecordExpense() {
     </Card>
   );
 }
+
+function RecordRevenue() {
+  const { bankAccounts, addTransaction } = useAppContext();
+  const { toast } = useToast();
+  const { user } = useUser();
+  const form = useForm<z.infer<typeof revenueFormSchema>>({
+    resolver: zodResolver(revenueFormSchema),
+    defaultValues: {
+        description: '',
+        category: 'projects',
+    }
+  });
+
+  async function onSubmit(values: z.infer<typeof revenueFormSchema>) {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to record revenue.' });
+        return;
+    }
+    const bankAccount = bankAccounts.find(ba => ba.id === values.bankAccountId);
+    if (!bankAccount) return;
+
+    const newTransaction: Omit<Transaction, 'id'> = {
+      date: new Date().toISOString(),
+      bankAccountId: values.bankAccountId,
+      type: 'incoming',
+      description: values.description,
+      amount: values.amount,
+      currency: bankAccount.currency,
+      originalAmount: values.amount,
+      recordedById: user.uid,
+      recordedBy: user.displayName || user.email || 'Unknown User',
+      category: values.category,
+    };
+    await addTransaction(newTransaction);
+    toast({
+      title: 'Revenue Recorded',
+      description: `${formatCurrency(values.amount, bankAccount.currency)} has been recorded as revenue.`,
+    });
+    form.reset({ description: '', amount: undefined, bankAccountId: undefined, category: 'projects' });
+  }
+
+  return (
+    <Card>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <CardHeader>
+            <CardTitle>Record Revenue</CardTitle>
+            <CardDescription>
+              Record incoming money from sources other than fees, like projects or donations.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <FormField
+              control={form.control}
+              name="bankAccountId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>To Bank Account</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a bank account" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {bankAccounts.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.bankName} - {b.accountNumber} ({b.currency})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Tuckshop sales" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="amount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Amount</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="e.g., 350.00" {...field} value={field.value ?? ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {statementCategories.filter(c => ['projects', 'other'].includes(c)).map(c => (
+                        <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+          <CardFooter>
+            <Button type="submit">Record Revenue</Button>
+          </CardFooter>
+        </form>
+      </Form>
+    </Card>
+  );
+}
+
 
 function DailyDeposits() {
     const { payments, markPaymentsAsDeposited, bankAccounts, addTransaction } = useAppContext();
@@ -414,10 +552,11 @@ function TransactionHistory() {
 export default function BankingPage() {
   return (
     <Tabs defaultValue="history" className="w-full">
-      <TabsList className="grid w-full grid-cols-3">
+      <TabsList className="grid w-full grid-cols-4">
         <TabsTrigger value="history">Transaction History</TabsTrigger>
         <TabsTrigger value="deposits">Daily Deposits</TabsTrigger>
         <TabsTrigger value="expense">Record Expense</TabsTrigger>
+        <TabsTrigger value="revenue">Record Revenue</TabsTrigger>
       </TabsList>
       <TabsContent value="history" className="mt-6">
         <TransactionHistory />
@@ -428,8 +567,9 @@ export default function BankingPage() {
       <TabsContent value="expense" className="mt-6">
         <RecordExpense />
       </TabsContent>
+       <TabsContent value="revenue" className="mt-6">
+        <RecordRevenue />
+      </TabsContent>
     </Tabs>
   );
 }
-
-    
