@@ -31,6 +31,7 @@ interface AppContextType {
 
   transactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'id' | 'category'> & {category?: StatementCategory}) => Promise<void>;
+  deleteTransaction: (transactionId: string, actor: { userId: string; userName: string; }) => Promise<void>;
 
   exchangeRate: ExchangeRate | null;
   setExchangeRate: (rate: number) => Promise<void>;
@@ -423,6 +424,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const deleteTransaction = async (transactionId: string, actor: { userId: string, userName: string }) => {
+    if (!firestore) return;
+    const transactionRef = doc(firestore, 'transactions', transactionId);
+
+    try {
+      const transactionDoc = await getDoc(transactionRef);
+      const transactionData = transactionDoc.data() as Transaction;
+      
+      if (!transactionData) throw new Error("Transaction not found.");
+
+      await deleteDoc(transactionRef);
+      addAdminLog(
+        'Delete Transaction',
+        `Deleted transaction: "${transactionData.description}" (${formatCurrency(transactionData.originalAmount, transactionData.currency)})`,
+        actor
+      );
+    } catch(err) {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: transactionRef.path, operation: 'delete' }));
+    }
+  };
+
   const addNote = async (note: Omit<Note, 'id' | 'createdAt'>) => {
     if (!firestore) return;
     const ref = collection(firestore, 'notes');
@@ -456,6 +478,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addBankAccount,
     transactions,
     addTransaction,
+    deleteTransaction,
     exchangeRate: exchangeRate ?? { rate: 1, lastUpdated: '' },
     setExchangeRate,
     markPaymentsAsDeposited,
@@ -479,5 +502,3 @@ export function useAppContext() {
   }
   return context;
 }
-
-    

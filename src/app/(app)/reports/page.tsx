@@ -186,31 +186,31 @@ function ClassLists() {
 }
 
 function DailyStatement() {
-  const { payments, transactions } = useAppContext();
+  const { transactions } = useAppContext();
   const [date, setDate] = useState<Date | undefined>(new Date());
 
-  const { dailyPayments, dailyExpenses, paymentsTotal, expensesTotal } = useMemo(() => {
+  const { dailyIncome, dailyExpenses, incomeTotal, expensesTotal } = useMemo(() => {
     if (!date) {
-      return { dailyPayments: [], dailyExpenses: [], paymentsTotal: 0, expensesTotal: 0 };
+      return { dailyIncome: [], dailyExpenses: [], incomeTotal: 0, expensesTotal: 0 };
     }
 
     const selectedDate = format(date, 'yyyy-MM-dd');
 
-    const dailyPayments = payments.filter(p => format(new Date(p.date), 'yyyy-MM-dd') === selectedDate);
+    const dailyIncome = transactions.filter(t => t.type === 'incoming' && format(new Date(t.date), 'yyyy-MM-dd') === selectedDate);
     const dailyExpenses = transactions.filter(t => t.type === 'outgoing' && format(new Date(t.date), 'yyyy-MM-dd') === selectedDate);
     
-    const paymentsTotal = dailyPayments.reduce((acc, p) => acc + p.amountInUSD, 0);
+    const incomeTotal = dailyIncome.reduce((acc, t) => acc + t.amount, 0);
     const expensesTotal = dailyExpenses.reduce((acc, t) => acc + t.amount, 0);
 
-    return { dailyPayments, dailyExpenses, paymentsTotal, expensesTotal };
-  }, [date, payments, transactions]);
+    return { dailyIncome, dailyExpenses, incomeTotal, expensesTotal };
+  }, [date, transactions]);
 
   return (
     <Card>
       <CardHeader className="flex-row items-start justify-between">
         <div>
           <CardTitle>Daily Statement</CardTitle>
-          <CardDescription>A summary of payments and expenses for a selected day.</CardDescription>
+          <CardDescription>A summary of income and expenses for a selected day.</CardDescription>
         </div>
         <div className="flex items-center gap-4">
           <DatePicker date={date} setDate={setDate} />
@@ -225,33 +225,33 @@ function DailyStatement() {
           <h1 className="text-2xl font-bold mb-4">Daily Statement for {date ? format(date, 'PPP') : 'N/A'}</h1>
           <div className="grid grid-cols-2 gap-8">
             <div>
-              <h2 className="text-lg font-semibold mb-2">Payments Received (Income)</h2>
+              <h2 className="text-lg font-semibold mb-2">Income Received</h2>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Receipt #</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead className="text-right">Amount (USD)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {dailyPayments.map(p => (
-                    <TableRow key={p.id}>
-                      <TableCell>{p.studentName}</TableCell>
-                      <TableCell>{p.receiptNumber}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(p.amountInUSD)}</TableCell>
+                  {dailyIncome.map(t => (
+                    <TableRow key={t.id}>
+                      <TableCell>{t.description}</TableCell>
+                      <TableCell className="capitalize">{t.category}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(t.amount)}</TableCell>
                     </TableRow>
                   ))}
-                   {dailyPayments.length === 0 && (
+                   {dailyIncome.length === 0 && (
                     <TableRow>
-                        <TableCell colSpan={3} className="h-24 text-center">No payments recorded for this day.</TableCell>
+                        <TableCell colSpan={3} className="h-24 text-center">No income recorded for this day.</TableCell>
                     </TableRow>
                    )}
                 </TableBody>
                 <TableFooter>
                   <TableRow>
                     <TableCell colSpan={2} className="text-right font-bold">Total Income</TableCell>
-                    <TableCell className="text-right font-bold">{formatCurrency(paymentsTotal)}</TableCell>
+                    <TableCell className="text-right font-bold">{formatCurrency(incomeTotal)}</TableCell>
                   </TableRow>
                 </TableFooter>
               </Table>
@@ -290,7 +290,7 @@ function DailyStatement() {
             </div>
           </div>
           <div className="mt-8 text-right">
-             <h2 className="text-xl font-bold">Net Total for the Day: {formatCurrency(paymentsTotal - expensesTotal)}</h2>
+             <h2 className="text-xl font-bold">Net Total for the Day: {formatCurrency(incomeTotal - expensesTotal)}</h2>
           </div>
         </div>
       </CardContent>

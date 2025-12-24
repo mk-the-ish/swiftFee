@@ -44,7 +44,7 @@ import { useAppContext } from '@/context/app-context';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency, groupTransactionsByAccount } from '@/lib/utils';
 import type { Transaction, StatementCategory } from '@/lib/types';
-import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,6 +64,7 @@ import {
 } from "@/components/ui/accordion"
 import { useUser } from '@/firebase/auth/use-user';
 import { statementCategories } from '@/lib/types';
+import { Label } from '@/components/ui/label';
 
 
 const expenseFormSchema = z.object({
@@ -478,6 +479,70 @@ function DailyDeposits() {
     );
 }
 
+function DeleteTransactionDialog({ transaction }: { transaction: Transaction }) {
+    const { deleteTransaction } = useAppContext();
+    const { toast } = useToast();
+    const { user, reauthenticate } = useUser();
+    const [password, setPassword] = React.useState('');
+    const [open, setOpen] = React.useState(false);
+    const [error, setError] = React.useState('');
+
+    const handleDelete = async () => {
+        if (!user || !user.email) {
+            toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in.' });
+            return;
+        }
+
+        setError('');
+        try {
+            await reauthenticate(password);
+            await deleteTransaction(transaction.id, {
+                userId: user.uid,
+                userName: user.displayName || user.email,
+            });
+            toast({ title: 'Success', description: 'Transaction has been deleted.' });
+            setPassword('');
+            setOpen(false);
+        } catch (e: any) {
+            setError('Authentication failed. Please check your password.');
+            console.error(e);
+        }
+    };
+
+    return (
+        <AlertDialog open={open} onOpenChange={setOpen}>
+            <AlertDialogTrigger asChild>
+                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will permanently delete the transaction: "{transaction.description}" of {formatCurrency(transaction.originalAmount, transaction.currency)}.
+                        This action cannot be undone and may affect financial reports.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="space-y-2">
+                    <Label htmlFor="password">Enter your password to confirm:</Label>
+                    <Input 
+                        id="password" 
+                        type="password" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                </div>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setPassword('')}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} disabled={!password}>Delete Transaction</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
+
 
 function TransactionHistory() {
     const { transactions, bankAccounts } = useAppContext();
@@ -516,6 +581,7 @@ function TransactionHistory() {
                                     <TableHead>Description</TableHead>
                                     <TableHead>Recorded By</TableHead>
                                     <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -533,11 +599,14 @@ function TransactionHistory() {
                                         <TableCell className={`text-right font-medium ${t.type === 'incoming' ? 'text-green-600' : 'text-red-600'}`}>
                                             {t.type === 'incoming' ? '+' : '-'} {formatCurrency(t.originalAmount, t.currency)}
                                         </TableCell>
+                                        <TableCell className="text-right">
+                                            <DeleteTransactionDialog transaction={t} />
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                                 {(!groupedTransactions[account.id] || groupedTransactions[account.id].length === 0) && (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center h-24">No transactions for this account yet.</TableCell>
+                                        <TableCell colSpan={5} className="text-center h-24">No transactions for this account yet.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
