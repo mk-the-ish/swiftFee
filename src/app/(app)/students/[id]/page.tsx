@@ -43,6 +43,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import {
@@ -50,9 +51,11 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
 
@@ -417,10 +420,10 @@ function DeletePaymentDialog({ payment }: { payment: Payment }) {
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <DialogDescription>
+                    <AlertDialogDescription>
                         This will permanently delete the payment of {formatCurrency(payment.amount, payment.currency)} from {payment.studentName}.
                         The amount will be added back to the student's owing balance. This action cannot be undone.
-                    </DialogDescription>
+                    </AlertDialogDescription>
                 </AlertDialogHeader>
                 <div className="space-y-2">
                     <Label htmlFor="password">Enter your password to confirm:</Label>
@@ -514,3 +517,5 @@ export default function StudentProfilePage() {
     </div>
   );
 }
+
+    
