@@ -52,9 +52,9 @@ import {
 } from '@/components/ui/select';
 import { useAppContext } from '@/context/app-context';
 import { useToast } from '@/hooks/use-toast';
-import { gradeProgression } from '@/lib/types';
-import type { BankAccount, Grade } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
+import { useUser } from '@/firebase/auth/use-user';
+import { format } from 'date-fns';
 
 
 const billingFormSchema = z.object({
@@ -73,6 +73,7 @@ const bankAccountFormSchema = z.object({
 function NewTermBilling() {
   const { bulkBillStudents } = useAppContext();
   const { toast } = useToast();
+  const { user } = useUser();
   const form = useForm<z.infer<typeof billingFormSchema>>({
     resolver: zodResolver(billingFormSchema),
     defaultValues: {
@@ -83,7 +84,11 @@ function NewTermBilling() {
   });
 
   async function onSubmit(values: z.infer<typeof billingFormSchema>) {
-    await bulkBillStudents(values);
+    if (!user) {
+        toast({ variant: "destructive", title: "Error", description: "You must be logged in to perform this action." });
+        return;
+    }
+    await bulkBillStudents(values, { userId: user.uid, userName: user.displayName || user.email || 'Unknown' });
     toast({
       title: 'Term Billed Successfully',
       description: 'All students have been billed for the new term.',
@@ -155,9 +160,14 @@ function NewTermBilling() {
 function NewYearUpgrade() {
   const { bulkUpgradeGrades } = useAppContext();
   const { toast } = useToast();
+  const { user } = useUser();
 
   const handleUpgrade = async () => {
-    await bulkUpgradeGrades();
+    if (!user) {
+        toast({ variant: "destructive", title: "Error", description: "You must be logged in to perform this action." });
+        return;
+    }
+    await bulkUpgradeGrades({ userId: user.uid, userName: user.displayName || user.email || 'Unknown' });
     toast({
       title: 'Students Upgraded',
       description: 'All students have been moved to the next grade.',
@@ -348,15 +358,58 @@ function StudentIDGeneration() {
   );
 }
 
+function AdminLogs() {
+    const { adminLogs } = useAppContext();
+    const sortedLogs = React.useMemo(() => {
+        return [...adminLogs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }, [adminLogs]);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Administrator Logs</CardTitle>
+                <CardDescription>A record of important administrative actions taken in the system.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Timestamp</TableHead>
+                            <TableHead>User</TableHead>
+                            <TableHead>Action</TableHead>
+                            <TableHead>Details</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedLogs.map(log => (
+                            <TableRow key={log.id}>
+                                <TableCell>{format(new Date(log.timestamp), 'dd MMM yyyy, HH:mm')}</TableCell>
+                                <TableCell>{log.userName}</TableCell>
+                                <TableCell><Badge variant="secondary">{log.action}</Badge></TableCell>
+                                <TableCell className="text-sm">{log.details}</TableCell>
+                            </TableRow>
+                        ))}
+                        {sortedLogs.length === 0 && (
+                             <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center">No logs recorded yet.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
 
 export default function AdminPage() {
   return (
     <Tabs defaultValue="billing" className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
+      <TabsList className="grid w-full grid-cols-5">
         <TabsTrigger value="billing">New Term Billing</TabsTrigger>
         <TabsTrigger value="upgrade">New Year Upgrade</TabsTrigger>
         <TabsTrigger value="banks">Bank Accounts</TabsTrigger>
         <TabsTrigger value="ids">Student IDs</TabsTrigger>
+        <TabsTrigger value="logs">Logs</TabsTrigger>
       </TabsList>
       <TabsContent value="billing" className="mt-6">
         <NewTermBilling />
@@ -369,6 +422,9 @@ export default function AdminPage() {
       </TabsContent>
       <TabsContent value="ids" className="mt-6">
         <StudentIDGeneration />
+      </TabsContent>
+       <TabsContent value="logs" className="mt-6">
+        <AdminLogs />
       </TabsContent>
     </Tabs>
   );

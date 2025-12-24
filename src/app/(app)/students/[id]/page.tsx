@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, 'use-client';
+import React from 'react';
 import { useParams } from 'next/navigation';
 import { useAppContext } from '@/context/app-context';
 import {
@@ -33,9 +33,9 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { formatCurrency } from '@/lib/utils';
-import { User, Cake, Phone, Home, Printer, Pencil, FilePlus, X } from 'lucide-react';
+import { User, Cake, Phone, Home, Printer, Pencil, FilePlus, X, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import type { Student } from '@/lib/types';
+import type { Student, Payment } from '@/lib/types';
 import { AddStudentForm } from '../components/add-student-form';
 import { Logo } from '@/components/icons';
 import { z } from 'zod';
@@ -44,6 +44,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/firebase/auth/use-user';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 
 const billingFormSchema = z.object({
@@ -56,6 +66,7 @@ function BillStudentDialog({ student }: { student: Student }) {
     const [open, setOpen] = React.useState(false);
     const { billStudent } = useAppContext();
     const { toast } = useToast();
+    const { user } = useUser();
 
     const form = useForm<z.infer<typeof billingFormSchema>>({
         resolver: zodResolver(billingFormSchema),
@@ -67,7 +78,11 @@ function BillStudentDialog({ student }: { student: Student }) {
     });
 
     async function onSubmit(values: z.infer<typeof billingFormSchema>) {
-        await billStudent(student.id, values);
+        if (!user) {
+            toast({ variant: "destructive", title: "Error", description: "You must be logged in to perform this action." });
+            return;
+        }
+        await billStudent(student.id, values, { userId: user.uid, userName: user.displayName || user.email || 'Unknown' });
         toast({
             title: 'Student Billed',
             description: `${student.name} has been billed successfully.`
@@ -362,6 +377,71 @@ function StudentProfileEdit({ student, onCancel }: { student: Student, onCancel:
     );
 }
 
+function DeletePaymentDialog({ payment }: { payment: Payment }) {
+    const { deletePayment } = useAppContext();
+    const { toast } = useToast();
+    const { user, reauthenticate } = useUser();
+    const [password, setPassword] = React.useState('');
+    const [open, setOpen] = React.useState(false);
+    const [error, setError] = React.useState('');
+
+    const handleDelete = async () => {
+        if (!user || !user.email) {
+            toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in.' });
+            return;
+        }
+
+        setError('');
+        try {
+            await reauthenticate(password);
+            await deletePayment(payment.id, payment.studentId, {
+                userId: user.uid,
+                userName: user.displayName || user.email,
+            });
+            toast({ title: 'Success', description: 'Payment has been deleted.' });
+            setPassword('');
+            setOpen(false);
+        } catch (e: any) {
+            setError('Authentication failed. Please check your password.');
+            console.error(e);
+        }
+    };
+
+    return (
+        <AlertDialog open={open} onOpenChange={setOpen}>
+            <AlertDialogTrigger asChild>
+                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <DialogDescription>
+                        This will permanently delete the payment of {formatCurrency(payment.amount, payment.currency)} from {payment.studentName}.
+                        The amount will be added back to the student's owing balance. This action cannot be undone.
+                    </DialogDescription>
+                </AlertDialogHeader>
+                <div className="space-y-2">
+                    <Label htmlFor="password">Enter your password to confirm:</Label>
+                    <Input 
+                        id="password" 
+                        type="password" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                </div>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setPassword('')}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} disabled={!password}>Delete Payment</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
+
+
 export default function StudentProfilePage() {
   const { id } = useParams();
   const { students, payments } = useAppContext();
@@ -405,6 +485,7 @@ export default function StudentProfilePage() {
                         <TableHead>Fee Type</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead className="text-right">Amount (USD)</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -415,11 +496,14 @@ export default function StudentProfilePage() {
                         <TableCell><Badge variant="outline" className="capitalize">{p.feeType}</Badge></TableCell>
                         <TableCell className="text-right">{formatCurrency(p.amount, p.currency)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(p.amountInUSD)}</TableCell>
+                        <TableCell className="text-right">
+                           <DeletePaymentDialog payment={p} />
+                        </TableCell>
                     </TableRow>
                     ))}
                     {studentPayments.length === 0 && (
                         <TableRow>
-                            <TableCell colSpan={5} className="text-center h-24">No payments recorded for this student.</TableCell>
+                            <TableCell colSpan={6} className="text-center h-24">No payments recorded for this student.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>

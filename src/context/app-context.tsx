@@ -2,9 +2,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
-import type { Student, Payment, BankAccount, Transaction, ExchangeRate, Note, StatementCategory, Grade, Class } from '@/lib/types';
+import type { Student, Payment, BankAccount, Transaction, ExchangeRate, Note, StatementCategory, Grade, Class, AdminLog } from '@/lib/types';
 import { useCollection, useDoc } from '@/firebase/firestore/hooks';
-import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference, deleteDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -14,15 +14,17 @@ import { getExpenseCategory, getPaymentCategory, classIdMap, gradeProgression } 
 interface AppContextType {
   students: Student[];
   addStudent: (student: Omit<Student, 'id'>) => Promise<void>;
-  updateStudent: (id: string, data: Partial<Omit<Student, 'id'>>) => Promise<void>;
+  updateStudent: (id: string, data: Partial<Omit<Student, 'id'>>, actor?: { userId: string, userName: string }) => Promise<void>;
   updateStudentBalances: (studentId: string, feeType: 'tuition' | 'levy' | 'building', amount: number) => Promise<void>;
-  bulkUpgradeGrades: () => Promise<void>;
-  bulkBillStudents: (values: { tuition: number; levy: number; buildingFund: number; }) => Promise<void>;
-  billStudent: (studentId: string, values: { tuition: number; levy: number; buildingFund: number; }) => Promise<void>;
+  bulkUpgradeGrades: (actor: { userId: string, userName: string }) => Promise<void>;
+  bulkBillStudents: (values: { tuition: number; levy: number; buildingFund: number; }, actor: { userId: string, userName: string }) => Promise<void>;
+  billStudent: (studentId: string, values: { tuition: number; levy: number; buildingFund: number; }, actor: { userId: string, userName: string }) => Promise<void>;
   bulkUpdateStudentIds: () => Promise<void>;
 
   payments: Payment[];
   addPayment: (payment: Omit<Payment, 'id'>) => Promise<DocumentReference | undefined>;
+  deletePayment: (paymentId: string, studentId: string, actor: { userId: string, userName: string }) => Promise<void>;
+
 
   bankAccounts: BankAccount[];
   addBankAccount: (account: Omit<BankAccount, 'id'>) => Promise<void>;
@@ -38,6 +40,8 @@ interface AppContextType {
   notes: Note[];
   addNote: (note: Omit<Note, 'id' | 'createdAt'>) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
+
+  adminLogs: AdminLog[];
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -51,6 +55,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { data: transactions = [] } = useCollection<Transaction>(firestore ? collection(firestore, 'transactions') : null);
   const { data: exchangeRate } = useDoc<ExchangeRate>(firestore ? doc(firestore, 'settings', 'exchangeRate') : null);
   const { data: notes = [] } = useCollection<Note>(firestore ? collection(firestore, 'notes') : null);
+  const { data: adminLogs = [] } = useCollection<AdminLog>(firestore ? collection(firestore, 'admin_logs') : null);
+
+  const addAdminLog = async (action: string, details: string, actor: { userId: string, userName: string }) => {
+    if (!firestore) return;
+    const log: Omit<AdminLog, 'id'> = {
+        timestamp: new Date().toISOString(),
+        userId: actor.userId,
+        userName: actor.userName,
+        action,
+        details
+    };
+    const ref = collection(firestore, 'admin_logs');
+    addDoc(ref, log).catch(err => console.error("Failed to add admin log:", err));
+  };
 
   const setExchangeRate = async (rate: number) => {
     if (!firestore) return;
@@ -102,10 +120,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
   };
 
-  const updateStudent = async (id: string, data: Partial<Omit<Student, 'id'>>) => {
+  const updateStudent = async (id: string, data: Partial<Omit<Student, 'id'>>, actor?: { userId: string, userName: string }) => {
       if (!firestore) return;
       const studentRef = doc(firestore, 'students', id);
+      const studentBefore = students.find(s => s.id === id);
+
       updateDoc(studentRef, data)
+        .then(() => {
+            if (actor && studentBefore && data.status && studentBefore.status !== data.status) {
+                addAdminLog('Change Student Status', `Changed status of ${studentBefore.name} (${id}) from ${studentBefore.status} to ${data.status}`, actor);
+            }
+        })
         .catch((err) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: studentRef.path, operation: 'update', requestResourceData: data }));
         });
@@ -160,18 +185,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
   };
 
-  const bulkUpgradeGrades = async () => {
+  const bulkUpgradeGrades = async (actor: { userId: string, userName: string }) => {
     if (!firestore) return;
     const batch = writeBatch(firestore);
 
     // Get a fresh copy of students for processing
     const allStudents: Student[] = [...students];
+    let upgradedCount = 0;
+    let activatedCount = 0;
 
     // First, change 'entrant' to 'active'
     allStudents.forEach(student => {
       if (student.status === 'entrant') {
         const studentRef = doc(firestore, 'students', student.id);
         batch.update(studentRef, { status: 'active' });
+        activatedCount++;
         // Update the local copy so the next step works on the correct status
         student.status = 'active'; 
       }
@@ -185,22 +213,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         
         if (student.grade === '7') {
             batch.update(studentRef, { status: 'graduated' });
+            upgradedCount++;
         } else {
             const nextGradeIndex = currentGradeIndex + 1;
             if (nextGradeIndex < gradeProgression.length) {
                 batch.update(studentRef, { grade: gradeProgression[nextGradeIndex] });
+                upgradedCount++;
             }
         }
       }
     });
 
     batch.commit()
+        .then(() => {
+            addAdminLog('New Year Upgrade', `Upgraded ${upgradedCount} students and activated ${activatedCount} entrants.`, actor);
+        })
         .catch((err) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: '/students', operation: 'update', requestResourceData: { 'note': 'bulk grade upgrade' } }));
         });
   };
 
-  const billStudent = async (studentId: string, values: { tuition: number; levy: number; buildingFund: number; }) => {
+  const billStudent = async (studentId: string, values: { tuition: number; levy: number; buildingFund: number; }, actor: { userId: string, userName: string }) => {
     if (!firestore) return;
     const student = students.find(s => s.id === studentId);
     if (!student) return;
@@ -212,16 +245,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         buildingFundOwing: student.buildingFundOwing + values.buildingFund,
     };
     updateDoc(studentRef, updateData)
+        .then(() => {
+             addAdminLog('Individual Billing', `Billed ${student.name} (${studentId}): Tuition +${values.tuition}, Levy +${values.levy}, Building +${values.buildingFund}`, actor);
+        })
         .catch((err) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: studentRef.path, operation: 'update', requestResourceData: updateData }));
         });
   };
 
-  const bulkBillStudents = async (values: { tuition: number; levy: number; buildingFund: number; }) => {
+  const bulkBillStudents = async (values: { tuition: number; levy: number; buildingFund: number; }, actor: { userId: string, userName: string }) => {
     if (!firestore) return;
     const batch = writeBatch(firestore);
+    let billedCount = 0;
     students.forEach(student => {
         if(student.status === 'active') {
+          billedCount++;
           const studentRef = doc(firestore, 'students', student.id);
           const updateData = {
             tuitionOwing: student.tuitionOwing + values.tuition,
@@ -232,6 +270,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
     });
     batch.commit()
+        .then(() => {
+            addAdminLog('Bulk Billing', `Billed ${billedCount} active students: Tuition +${values.tuition}, Levy +${values.levy}, Building +${values.buildingFund}`, actor);
+        })
         .catch((err) => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: '/students', operation: 'update', requestResourceData: { 'note': 'bulk billing' } }));
         });
@@ -312,6 +353,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return undefined;
   };
 
+  const deletePayment = async (paymentId: string, studentId: string, actor: { userId: string, userName: string }) => {
+    if (!firestore) return;
+    const paymentRef = doc(firestore, 'payments', paymentId);
+    const studentRef = doc(firestore, 'students', studentId);
+    
+    try {
+        const paymentDoc = await getDoc(paymentRef);
+        const paymentData = paymentDoc.data() as Payment;
+
+        if (!paymentData) {
+            throw new Error("Payment not found.");
+        }
+
+        const studentDoc = await getDoc(studentRef);
+        const studentData = studentDoc.data() as Student;
+
+        if (!studentData) {
+            throw new Error("Student not found.");
+        }
+        
+        const owingKey = `${paymentData.feeType}Owing` as keyof Student;
+        const currentOwing = (studentData[owingKey] as number) || 0;
+        const newOwing = currentOwing + paymentData.amountInUSD;
+
+        const batch = writeBatch(firestore);
+        batch.delete(paymentRef);
+        batch.update(studentRef, { [owingKey]: newOwing });
+
+        await batch.commit();
+        addAdminLog('Delete Payment', `Deleted payment ${paymentId} (${formatCurrency(paymentData.amount, paymentData.currency)}) for student ${studentData.name} (${studentId}).`, actor);
+
+    } catch (err) {
+         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: paymentRef.path, operation: 'delete' }));
+    }
+  };
+
   const addNote = async (note: Omit<Note, 'id' | 'createdAt'>) => {
     if (!firestore) return;
     const ref = collection(firestore, 'notes');
@@ -340,6 +417,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     bulkUpdateStudentIds,
     payments,
     addPayment,
+    deletePayment,
     bankAccounts,
     addBankAccount,
     transactions,
@@ -350,7 +428,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     notes,
     addNote,
     deleteNote,
-  }), [students, updateStudent, addStudent, payments, bankAccounts, transactions, exchangeRate, firestore, addBankAccount, addTransaction, bulkUpgradeGrades, bulkBillStudents, billStudent, notes, addNote, deleteNote]);
+    adminLogs,
+  }), [students, updateStudent, addStudent, payments, bankAccounts, transactions, exchangeRate, firestore, addBankAccount, addTransaction, bulkUpgradeGrades, bulkBillStudents, billStudent, notes, addNote, deleteNote, adminLogs]);
 
   return (
     <AppContext.Provider value={contextValue}>
@@ -366,5 +445,3 @@ export function useAppContext() {
   }
   return context;
 }
-
-    

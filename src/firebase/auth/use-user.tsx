@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,6 +7,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
   type User,
 } from 'firebase/auth';
 import { useAuth } from '../provider';
@@ -47,5 +50,14 @@ export function useUser() {
     router.push('/login');
   };
 
-  return { user, loading, signInWithEmail, createUserWithEmail, signOut };
+  const reauthenticate = async (password: string) => {
+    if (!auth || !auth.currentUser || !auth.currentUser.email) {
+      throw new Error("User not authenticated or email not available.");
+    }
+    const credential = EmailAuthProvider.credential(auth.currentUser.email, password);
+    return reauthenticateWithCredential(auth.currentUser, credential);
+  };
+
+
+  return { user, loading, signInWithEmail, createUserWithEmail, signOut, reauthenticate };
 }
