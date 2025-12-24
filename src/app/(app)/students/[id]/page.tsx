@@ -30,7 +30,6 @@ import {
   DialogTrigger,
   DialogFooter,
   DialogClose,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import { formatCurrency } from '@/lib/utils';
 import { User, Cake, Phone, Home, Printer, Pencil, FilePlus, X, Trash2 } from 'lucide-react';
@@ -451,7 +450,13 @@ export default function StudentProfilePage() {
   const [isEditing, setIsEditing] = React.useState(false);
 
   const student = students.find((s) => s.id === id);
-  const studentPayments = payments.filter((p) => p.studentId === id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  
+  const studentPayments = React.useMemo(() => {
+    if (!student) return [];
+    return payments
+        .filter((p) => p.studentId === student.id)
+        .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [payments, student]);
 
   if (!student) {
     return (
