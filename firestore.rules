@@ -11,9 +11,6 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/roles_bursar/$(request.auth.uid));
     }
 
-    /**
-     * @description Secures access to student documents.
-     */
     match /students/{studentId} {
       allow get: if isSignedIn();
       allow list: if isBursar(); 
@@ -21,53 +18,34 @@ service cloud.firestore {
       allow update: if isBursar();
       allow delete: if isBursar();
 
-      /**
-       * @description Secures payment records for each student.
-       * Only bursars can manage payments.
-       */
       match /feesPayments/{feesPaymentId} {
         allow read, list, create: if isBursar();
         allow update, delete: if isBursar();
       }
     }
 
-    /**
-     * @description Secures access to bank account information.
-     */
     match /bankAccounts/{accountId} {
       allow read, list, create, update, delete: if isBursar();
     }
 
-    /**
-     * @description Secures access to bank transaction data.
-     */
     match /transactions/{transactionId} {
       allow get: if isSignedIn();
-      allow list: if isBursar(); // Allow bursars to list transactions
+      allow list: if isBursar();
       allow create, update, delete: if isBursar();
     }
     
-    /**
-     * @description Secures the admin log. Readable by bursars, append-only for users.
-     */
     match /admin_logs/{logId} {
       allow read, list: if isBursar();
       allow create: if isSignedIn();
-      allow update, delete: if false; // Logs are immutable
+      allow update, delete: if false; 
     }
 
-    /**
-     * @description Allows public read access to the exchange rate.
-     */
     match /settings/exchangeRate {
       allow get, list: if true;
       allow create, update: if isBursar();
       allow delete: if false;
     }
 
-    /**
-     * @description Secures access to user-created notes.
-     */
     match /notes/{noteId} {
       allow list, get: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
@@ -75,9 +53,6 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
     }
     
-    /**
-     * @description Role definitions. Should only be managed from the Firebase Console.
-     */
     match /roles_bursar/{userId} {
       allow read, write: if false;
     }
