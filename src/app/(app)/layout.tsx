@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -32,6 +33,7 @@ import { Logo } from '@/components/icons';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { useUser } from '@/firebase/auth/use-user';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { Badge } from '@/components/ui/badge';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -180,9 +182,12 @@ function AppLayoutContent({
               </nav>
             </SheetContent>
           </Sheet>
-          <h1 className="text-xl font-semibold md:text-2xl">
-            {getPageTitle(pathname)}
-          </h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-semibold md:text-2xl">
+                {getPageTitle(pathname)}
+            </h1>
+            {user && <Badge variant="outline">UID: {user.uid}</Badge>}
+          </div>
           <div className="relative ml-auto flex-1 md:grow-0" />
         </header>
         <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
