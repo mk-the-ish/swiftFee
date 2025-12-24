@@ -43,7 +43,7 @@ service cloud.firestore {
      */
     match /transactions/{transactionId} {
       allow get: if isSignedIn();
-      allow list: if false; // Deny listing for all users
+      allow list: if isBursar(); // Allow bursars to list transactions
       allow create, update, delete: if isBursar();
     }
     
