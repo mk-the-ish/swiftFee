@@ -50,7 +50,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
 
   const { data: students = [] } = useCollection<Student>(firestore ? collection(firestore, 'students') : null);
-  // Payments are now fetched on-demand or with a more complex listener, since they are in subcollections.
   const [payments, setPayments] = useState<Payment[]>([]);
   const { data: bankAccounts = [] } = useCollection<BankAccount>(firestore ? collection(firestore, 'bankAccounts') : null);
   const { data: transactions = [] } = useCollection<Transaction>(firestore ? collection(firestore, 'transactions') : null);
@@ -75,20 +74,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       setPayments(allPayments);
     };
-
+    
+    // Initial fetch
     fetchAllPayments();
 
-    // Set up listeners for each student's payments
-    const unsubscribers = students.map(student => {
-      const paymentsRef = collection(firestore, 'students', student.id, 'feesPayments');
-      return onSnapshot(paymentsRef, snapshot => {
-        // This is a simple way to refetch all payments. A more optimized approach
-        // would be to update the state partially.
-        fetchAllPayments();
-      });
+    // Set up a single listener on the transactions collection
+    const transactionsRef = collection(firestore, 'transactions');
+    const unsubscribe = onSnapshot(transactionsRef, (snapshot) => {
+        // When transactions change, it's likely a payment was added/deleted.
+        // Re-fetch all payments. This is more efficient than many listeners.
+        if (snapshot.docChanges().length > 0) {
+           fetchAllPayments();
+        }
     });
 
-    return () => unsubscribers.forEach(unsub => unsub());
+    return () => unsubscribe();
   }, [students, firestore]);
 
   const addAdminLog = async (action: string, details: string, actor: { userId: string, userName: string }) => {
