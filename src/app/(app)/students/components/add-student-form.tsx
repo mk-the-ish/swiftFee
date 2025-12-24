@@ -202,7 +202,11 @@ export function AddStudentForm({ setOpen, studentToEdit }: { setOpen: (open: boo
             <FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
         )}/>
         <DialogFooter className="mt-4">
-            <DialogClose asChild><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button></DialogClose>
+            {isEditMode ? (
+              <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
+            ) : (
+              <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+            )}
             <Button type="submit">{isEditMode ? 'Update Student' : 'Add Student'}</Button>
         </DialogFooter>
       </form>
