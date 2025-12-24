@@ -1,3 +1,4 @@
+
 /**
  * @file Firebase Security Rules for Firestore.
  *
@@ -9,22 +10,19 @@
  *
  * @data_structure
  * - /students/{studentId}: Stores individual student records.
+ * - /students/{studentId}/feesPayments/{feesPaymentId}: Sub-collection for student payments.
  * - /bankAccounts/{accountId}: Stores bank account information for the school.
  *   Access to this collection is strictly limited.
- * - /payments/{paymentId}: Stores payment records made by students.
  * - /transactions/{transactionId}: Stores bank transaction data.
  * - /settings/exchangeRate: Stores the current exchange rate. This is public.
  * - /notes/{noteId}: Stores user-created notes.
+ * - /roles_bursar/{userId}: Grants 'bursar' role.
+ * - /admin_logs/{logId}: Stores a trail of administrative actions.
  *
  * @key_security_decisions
- * - Bank accounts and transactions are considered highly sensitive. Listing
- *   these collections is explicitly denied to prevent unauthorized data
- *   exposure. Only specific read or write access is granted.
- * - Student data and payments are accessible, but the rules can be extended to
- *   limit access based on roles or ownership.
- * - The exchange rate is publicly readable.
- * - Notes can be read by any authenticated user. Creation is allowed for
- *   any authenticated user, and deletion is restricted to the note's author.
+ * - Payments are now a sub-collection of students for clearer ownership and security.
+ * - Deleting payments is restricted to bursars to prevent accidental data loss.
+ * - The admin_logs collection is append-only for authenticated users, but only readable by bursars.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -40,101 +38,75 @@ service cloud.firestore {
 
     /**
      * @description Secures access to student documents.
-     * @path /students/{studentId}
-     * @allow (get, create, update, delete) if isSignedIn()
-     * @deny (get) if !isSignedIn()
-     * @principle Requires the user to be signed in for any student data operation.
      */
     match /students/{studentId} {
       allow get: if isSignedIn();
       allow list: if isBursar(); 
       allow create: if isBursar();
-      allow update: if isBursar() && resource != null;
-      allow delete: if isBursar() && resource != null;
+      allow update: if isBursar();
+      allow delete: if isBursar();
+
+      /**
+       * @description Secures payment records for each student.
+       * Only bursars can manage payments.
+       */
+      match /feesPayments/{feesPaymentId} {
+        allow read, list, create: if isBursar();
+        allow update, delete: if isBursar();
+      }
     }
 
     /**
      * @description Secures access to bank account information.
-     * @path /bankAccounts/{accountId}
-     * @allow (get) if isSignedIn()
-     * @deny (list, create, update, delete)
-     * @principle Denies listing, creation, updates, and deletion for bank accounts.
      */
     match /bankAccounts/{accountId} {
-      allow get: if isBursar();
-      allow list: if isBursar();
-      allow create: if isBursar();
-      allow update: if isBursar();
-      allow delete: if isBursar();
-    }
-
-    /**
-     * @description Secures access to payment records.
-     * @path /payments/{paymentId}
-     * @allow (get, create, update, delete) if isSignedIn()
-     * @deny (get) if !isSignedIn()
-     * @principle Requires the user to be signed in for any payment data operation.
-     */
-    match /payments/{paymentId} {
-      allow get: if isSignedIn();
-      allow list: if isBursar();
-      allow create: if isBursar();
-      allow update: if isBursar() && resource != null;
-      allow delete: if isBursar() && resource != null;
+      allow read, list, create, update, delete: if isBursar();
     }
 
     /**
      * @description Secures access to bank transaction data.
-     * @path /transactions/{transactionId}
-     * @allow (get) if isSignedIn()
-     * @deny (list, create, update, delete)
-     * @principle Denies listing, creation, updates, and deletion for transactions.
      */
     match /transactions/{transactionId} {
       allow get: if isSignedIn();
-      allow list: if false;
-      allow create: if isBursar();
-      allow update: if isBursar();
-      allow delete: if isBursar();
+      allow list: if false; // Deny listing for all users
+      allow create, update, delete: if isBursar();
     }
     
+    /**
+     * @description Secures the admin log. Readable by bursars, append-only for users.
+     */
     match /admin_logs/{logId} {
-      allow list, get: if isBursar();
+      allow read, list: if isBursar();
       allow create: if isSignedIn();
+      allow update, delete: if false; // Logs are immutable
     }
 
     /**
      * @description Allows public read access to the exchange rate.
-     * @path /settings/exchangeRate
-     * @allow (get, list) if true
-     * @deny (create, update, delete)
-     * @principle Allows anyone to read the exchange rate, but restricts writing.
      */
     match /settings/exchangeRate {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isBursar();
-      allow update: if isBursar();
+      allow get, list: if true;
+      allow create, update: if isBursar();
       allow delete: if false;
     }
 
     /**
      * @description Secures access to user-created notes.
-     * @path /notes/{noteId}
-     * @allow (list, get) if isSignedIn()
-     * @allow (create) if isSignedIn() && request.resource.data.authorId == request.auth.uid
-     * @allow (delete) if isSignedIn() && resource.data.authorId == request.auth.uid
-     * @principle Allows any authenticated user to read notes. Users can create notes and can only delete their own notes.
      */
     match /notes/{noteId} {
       allow list, get: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
       allow update: if false;
+      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
     }
     
+    /**
+     * @description Role definitions. Should only be managed from the Firebase Console.
+     */
     match /roles_bursar/{userId} {
-      allow read, write: if false; // Should only be managed from the Firebase Console
+      allow read, write: if false;
     }
   }
 }
+
+    

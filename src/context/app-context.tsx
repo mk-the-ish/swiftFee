@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import type { Student, Payment, BankAccount, Transaction, ExchangeRate, Note, StatementCategory, Grade, Class, AdminLog } from '@/lib/types';
 import { useCollection, useDoc } from '@/firebase/firestore/hooks';
-import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference, deleteDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference, deleteDoc, getDoc, query, where, getDocs } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -35,7 +35,7 @@ interface AppContextType {
   exchangeRate: ExchangeRate | null;
   setExchangeRate: (rate: number) => Promise<void>;
   
-  markPaymentsAsDeposited: (paymentIds: string[]) => Promise<void>;
+  markPaymentsAsDeposited: (paymentIds: string[], studentId: string) => Promise<void>;
 
   notes: Note[];
   addNote: (note: Omit<Note, 'id' | 'createdAt'>) => Promise<void>;
@@ -50,12 +50,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
 
   const { data: students = [] } = useCollection<Student>(firestore ? collection(firestore, 'students') : null);
-  const { data: payments = [] } = useCollection<Payment>(firestore ? collection(firestore, 'payments') : null);
+  // Payments are now fetched on-demand or with a more complex listener, since they are in subcollections.
+  const [payments, setPayments] = useState<Payment[]>([]);
   const { data: bankAccounts = [] } = useCollection<BankAccount>(firestore ? collection(firestore, 'bankAccounts') : null);
   const { data: transactions = [] } = useCollection<Transaction>(firestore ? collection(firestore, 'transactions') : null);
   const { data: exchangeRate } = useDoc<ExchangeRate>(firestore ? doc(firestore, 'settings', 'exchangeRate') : null);
   const { data: notes = [] } = useCollection<Note>(firestore ? collection(firestore, 'notes') : null);
   const { data: adminLogs = [] } = useCollection<AdminLog>(firestore ? collection(firestore, 'admin_logs') : null);
+  
+  useEffect(() => {
+    if (!firestore || students.length === 0) {
+      setPayments([]);
+      return;
+    }
+
+    const fetchAllPayments = async () => {
+      const allPayments: Payment[] = [];
+      for (const student of students) {
+        const paymentsRef = collection(firestore, 'students', student.id, 'feesPayments');
+        const paymentsSnap = await getDocs(paymentsRef);
+        paymentsSnap.forEach(doc => {
+          allPayments.push({ id: doc.id, ...doc.data() } as Payment);
+        });
+      }
+      setPayments(allPayments);
+    };
+
+    fetchAllPayments();
+
+    // Set up listeners for each student's payments
+    const unsubscribers = students.map(student => {
+      const paymentsRef = collection(firestore, 'students', student.id, 'feesPayments');
+      return onSnapshot(paymentsRef, snapshot => {
+        // This is a simple way to refetch all payments. A more optimized approach
+        // would be to update the state partially.
+        fetchAllPayments();
+      });
+    });
+
+    return () => unsubscribers.forEach(unsub => unsub());
+  }, [students, firestore]);
 
   const addAdminLog = async (action: string, details: string, actor: { userId: string, userName: string }) => {
     if (!firestore) return;
@@ -278,16 +312,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
   };
 
-  const markPaymentsAsDeposited = async (paymentIds: string[]) => {
+  const markPaymentsAsDeposited = async (paymentIds: string[], studentId: string) => {
     if (!firestore) return;
     const batch = writeBatch(firestore);
     paymentIds.forEach(id => {
-      const paymentRef = doc(firestore, 'payments', id);
+      const paymentRef = doc(firestore, 'students', studentId, 'feesPayments', id);
       batch.update(paymentRef, { deposited: true });
     });
     batch.commit()
       .catch((err) => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: '/payments', operation: 'update', requestResourceData: { 'note': 'mark as deposited' } }));
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/students/${studentId}/feesPayments`, operation: 'update', requestResourceData: { 'note': 'mark as deposited' } }));
       });
   };
 
@@ -341,7 +375,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   
   const addPayment = async (payment: Omit<Payment, 'id'>): Promise<DocumentReference | undefined> => { 
       if (firestore) {
-           const ref = collection(firestore, 'payments');
+           const ref = collection(firestore, 'students', payment.studentId, 'feesPayments');
            try {
               const docRef = await addDoc(ref, payment);
               return docRef;
@@ -355,7 +389,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const deletePayment = async (paymentId: string, studentId: string, actor: { userId: string, userName: string }) => {
     if (!firestore) return;
-    const paymentRef = doc(firestore, 'payments', paymentId);
+    const paymentRef = doc(firestore, 'students', studentId, 'feesPayments', paymentId);
     const studentRef = doc(firestore, 'students', studentId);
     
     try {
@@ -429,7 +463,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addNote,
     deleteNote,
     adminLogs,
-  }), [students, updateStudent, addStudent, payments, bankAccounts, transactions, exchangeRate, firestore, addBankAccount, addTransaction, bulkUpgradeGrades, bulkBillStudents, billStudent, notes, addNote, deleteNote, adminLogs]);
+  }), [students, payments, bankAccounts, transactions, exchangeRate, firestore, notes, adminLogs]);
 
   return (
     <AppContext.Provider value={contextValue}>
@@ -445,3 +479,5 @@ export function useAppContext() {
   }
   return context;
 }
+
+    
