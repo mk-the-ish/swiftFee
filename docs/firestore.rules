@@ -30,6 +30,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isBursar() {
+      return exists(/databases/$(database)/documents/roles_bursar/$(request.auth.uid));
+    }
+
     /**
      * @description Secures access to student documents.
      * @path /students/{studentId}
@@ -39,10 +47,10 @@ service cloud.firestore {
      */
     match /students/{studentId} {
       allow get: if isSignedIn();
-      allow list: if false; // Listing students collection is too open, and exposing PII
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow list: if isBursar(); 
+      allow create: if isBursar();
+      allow update: if isBursar() && resource != null;
+      allow delete: if isBursar() && resource != null;
     }
 
     /**
@@ -53,11 +61,11 @@ service cloud.firestore {
      * @principle Denies listing, creation, updates, and deletion for bank accounts.
      */
     match /bankAccounts/{accountId} {
-      allow get: if isSignedIn();
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get: if isBursar();
+      allow list: if isBursar();
+      allow create: if isBursar();
+      allow update: if isBursar();
+      allow delete: if isBursar();
     }
 
     /**
@@ -69,10 +77,10 @@ service cloud.firestore {
      */
     match /payments/{paymentId} {
       allow get: if isSignedIn();
-      allow list: if false;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if isSignedIn() && resource != null;
+      allow list: if isBursar();
+      allow create: if isBursar();
+      allow update: if isBursar() && resource != null;
+      allow delete: if isBursar() && resource != null;
     }
 
     /**
@@ -85,9 +93,14 @@ service cloud.firestore {
     match /transactions/{transactionId} {
       allow get: if isSignedIn();
       allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create: if isBursar();
+      allow update: if isBursar();
+      allow delete: if isBursar();
+    }
+    
+    match /admin_logs/{logId} {
+      allow list, get: if isBursar();
+      allow create: if isSignedIn();
     }
 
     /**
@@ -100,8 +113,8 @@ service cloud.firestore {
     match /settings/exchangeRate {
       allow get: if true;
       allow list: if true;
-      allow create: if false;
-      allow update: if false;
+      allow create: if isBursar();
+      allow update: if isBursar();
       allow delete: if false;
     }
 
@@ -119,10 +132,9 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
       allow update: if false;
     }
-  }
-
-  // Helper function to check if the user is signed in.
-  function isSignedIn() {
-    return request.auth != null;
+    
+    match /roles_bursar/{userId} {
+      allow read, write: if false; // Should only be managed from the Firebase Console
+    }
   }
 }
