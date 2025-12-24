@@ -15,6 +15,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -86,6 +87,8 @@ function AddStudentDialog() {
 type SortKey = keyof Student | 'totalOwing';
 type SortableStudent = Student & { totalOwing: number };
 
+const ITEMS_PER_PAGE = 15;
+
 export default function StudentsPage() {
   const { students } = useAppContext();
   const [searchTerm, setSearchTerm] = useState('');
@@ -94,6 +97,7 @@ export default function StudentsPage() {
   const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<StudentStatus>('active');
   const [displayList, setDisplayList] = useState<SortableStudent[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     let sortableStudents = [...students].map(student => ({
@@ -128,6 +132,7 @@ export default function StudentsPage() {
     });
 
     setDisplayList(filtered);
+    setCurrentPage(1); // Reset to first page on filter change
 
   }, [students, debouncedSearchTerm, sortConfig, gradeFilter, statusFilter]);
 
@@ -147,6 +152,13 @@ export default function StudentsPage() {
       </Button>
     </TableHead>
   );
+
+  const totalPages = Math.ceil(displayList.length / ITEMS_PER_PAGE);
+  const paginatedList = displayList.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
 
   return (
     <Card>
@@ -203,7 +215,7 @@ export default function StudentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayList.map((student) => (
+            {paginatedList.map((student) => (
               <TableRow key={student.id}>
                 <TableCell className="font-medium">
                   <Link href={`/students/${student.id}`} className="hover:underline text-primary">
@@ -218,7 +230,7 @@ export default function StudentsPage() {
                 <TableCell><Badge variant={student.status === 'active' || student.status === 'entrant' ? 'default' : 'secondary'} className="capitalize">{student.status}</Badge></TableCell>
               </TableRow>
             ))}
-             {displayList.length === 0 && (
+             {paginatedList.length === 0 && (
                 <TableRow>
                     <TableCell colSpan={7} className="text-center h-24">No students found.</TableCell>
                 </TableRow>
@@ -226,6 +238,34 @@ export default function StudentsPage() {
           </TableBody>
         </Table>
       </CardContent>
+       <CardFooter>
+        <div className="flex w-full items-center justify-between text-sm text-muted-foreground">
+          <div>
+            Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, displayList.length)} to {Math.min(currentPage * ITEMS_PER_PAGE, displayList.length)} of {displayList.length} students.
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+             <span>
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </CardFooter>
     </Card>
   );
 }
