@@ -504,8 +504,17 @@ function DeleteTransactionDialog({ transaction }: { transaction: Transaction }) 
             setPassword('');
             setOpen(false);
         } catch (e: any) {
-            setError('Authentication failed. Please check your password.');
-            console.error(e);
+            if (e.message.includes("linked to a fee payment")) {
+              toast ({
+                variant: 'destructive',
+                title: 'Action Prohibited',
+                description: 'This transaction is linked to a fee payment and cannot be deleted. Please delete the payment itself from the student profile.',
+                duration: 9000,
+              });
+            } else {
+              setError('Authentication failed. Please Check Your Password ');
+            }
+            console.error('Error deleting transaction:', e);
         }
     };
 
