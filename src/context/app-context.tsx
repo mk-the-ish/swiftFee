@@ -4,11 +4,11 @@
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import type { Student, Payment, BankAccount, Transaction, ExchangeRate, Note, StatementCategory, Grade, Class, AdminLog } from '@/lib/types';
 import { useCollection, useDoc } from '@/firebase/firestore/hooks';
-import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference, deleteDoc, getDoc, query, where, getDocs, onSnapshot } from 'firebase/firestore';
+import { collection, doc, setDoc, addDoc, updateDoc, writeBatch, DocumentReference, deleteDoc, getDoc, query, where, getDocs } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { getExpenseCategory, getPaymentCategory, classIdMap, gradeProgression } from '@/lib/utils';
+import { getExpenseCategory, getPaymentCategory, classIdMap, gradeProgression, formatCurrency } from '@/lib/utils';
 
 
 interface AppContextType {
@@ -23,7 +23,7 @@ interface AppContextType {
 
   payments: Payment[];
   addPayment: (payment: Omit<Payment, 'id'>) => Promise<DocumentReference | undefined>;
-  deletePayment: (paymentId: string, studentId: string, actor: { userId: string, userName: string }) => Promise<void>;
+  deletePayment: (payment: Payment, actor: { userId: string, userName: string }) => Promise<void>;
 
 
   bankAccounts: BankAccount[];
@@ -36,7 +36,7 @@ interface AppContextType {
   exchangeRate: ExchangeRate | null;
   setExchangeRate: (rate: number) => Promise<void>;
   
-  markPaymentsAsDeposited: (paymentIds: string[], studentId: string) => Promise<void>;
+  markPaymentsAsDeposited: (paymentIds: string[]) => Promise<void>;
 
   notes: Note[];
   addNote: (note: Omit<Note, 'id' | 'createdAt'>) => Promise<void>;
@@ -51,46 +51,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
 
   const { data: students = [] } = useCollection<Student>(firestore ? collection(firestore, 'students') : null);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const { data: payments = [] } = useCollection<Payment>(firestore ? collection(firestore, 'payments') : null);
   const { data: bankAccounts = [] } = useCollection<BankAccount>(firestore ? collection(firestore, 'bankAccounts') : null);
   const { data: transactions = [] } = useCollection<Transaction>(firestore ? collection(firestore, 'transactions') : null);
   const { data: exchangeRate } = useDoc<ExchangeRate>(firestore ? doc(firestore, 'settings', 'exchangeRate') : null);
   const { data: notes = [] } = useCollection<Note>(firestore ? collection(firestore, 'notes') : null);
   const { data: adminLogs = [] } = useCollection<AdminLog>(firestore ? collection(firestore, 'admin_logs') : null);
   
-  useEffect(() => {
-    if (!firestore || students.length === 0) {
-      setPayments([]);
-      return;
-    }
-
-    const fetchAllPayments = async () => {
-      const allPayments: Payment[] = [];
-      for (const student of students) {
-        const paymentsRef = collection(firestore, 'students', student.id, 'feesPayments');
-        const paymentsSnap = await getDocs(paymentsRef);
-        paymentsSnap.forEach(doc => {
-          allPayments.push({ id: doc.id, ...doc.data() } as Payment);
-        });
-      }
-      setPayments(allPayments);
-    };
-    
-    // Initial fetch
-    fetchAllPayments();
-
-    // Set up a single listener on the transactions collection
-    const transactionsRef = collection(firestore, 'transactions');
-    const unsubscribe = onSnapshot(transactionsRef, (snapshot) => {
-        // When transactions change, it's likely a payment was added/deleted.
-        // Re-fetch all payments. This is more efficient than many listeners.
-        if (snapshot.docChanges().length > 0) {
-           fetchAllPayments();
-        }
-    });
-
-    return () => unsubscribe();
-  }, [students, firestore]);
 
   const addAdminLog = async (action: string, details: string, actor: { userId: string, userName: string }) => {
     if (!firestore) return;
@@ -313,16 +280,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
   };
 
-  const markPaymentsAsDeposited = async (paymentIds: string[], studentId: string) => {
+  const markPaymentsAsDeposited = async (paymentIds: string[]) => {
     if (!firestore) return;
     const batch = writeBatch(firestore);
     paymentIds.forEach(id => {
-      const paymentRef = doc(firestore, 'students', studentId, 'feesPayments', id);
+      const paymentRef = doc(firestore, 'payments', id);
       batch.update(paymentRef, { deposited: true });
     });
     batch.commit()
       .catch((err) => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/students/${studentId}/feesPayments`, operation: 'update', requestResourceData: { 'note': 'mark as deposited' } }));
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `/payments`, operation: 'update', requestResourceData: { 'note': 'mark as deposited' } }));
       });
   };
 
@@ -376,7 +343,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   
   const addPayment = async (payment: Omit<Payment, 'id'>): Promise<DocumentReference | undefined> => { 
       if (firestore) {
-           const ref = collection(firestore, 'students', payment.studentId, 'feesPayments');
+           const ref = collection(firestore, 'payments');
            try {
               const docRef = await addDoc(ref, payment);
               return docRef;
@@ -388,19 +355,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return undefined;
   };
 
-  const deletePayment = async (paymentId: string, studentId: string, actor: { userId: string, userName: string }) => {
+  const deletePayment = async (payment: Payment, actor: { userId: string, userName: string }) => {
     if (!firestore) return;
-    const paymentRef = doc(firestore, 'students', studentId, 'feesPayments', paymentId);
-    const studentRef = doc(firestore, 'students', studentId);
+    const paymentRef = doc(firestore, 'payments', payment.id);
+    const studentRef = doc(firestore, 'students', payment.studentId);
     
     try {
-        const paymentDoc = await getDoc(paymentRef);
-        const paymentData = paymentDoc.data() as Payment;
-
-        if (!paymentData) {
-            throw new Error("Payment not found.");
-        }
-
         const studentDoc = await getDoc(studentRef);
         const studentData = studentDoc.data() as Student;
 
@@ -408,16 +368,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             throw new Error("Student not found.");
         }
         
-        const owingKey = `${paymentData.feeType}Owing` as keyof Student;
+        const owingKey = `${payment.feeType}Owing` as keyof Student;
         const currentOwing = (studentData[owingKey] as number) || 0;
-        const newOwing = currentOwing + paymentData.amountInUSD;
+        const newOwing = currentOwing + payment.amountInUSD;
 
         const batch = writeBatch(firestore);
         batch.delete(paymentRef);
         batch.update(studentRef, { [owingKey]: newOwing });
 
         await batch.commit();
-        addAdminLog('Delete Payment', `Deleted payment ${paymentId} (${formatCurrency(paymentData.amount, paymentData.currency)}) for student ${studentData.name} (${studentId}).`, actor);
+        addAdminLog('Delete Payment', `Deleted payment ${payment.id} (${formatCurrency(payment.amount, payment.currency)}) for student ${studentData.name} (${payment.studentId}).`, actor);
 
     } catch (err) {
          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: paymentRef.path, operation: 'delete' }));

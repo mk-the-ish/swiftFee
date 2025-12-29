@@ -372,7 +372,7 @@ function DailyDeposits() {
     }, [payments, bankAccounts]);
 
 
-    const handleDeposit = async (accountId: string, total: number, currency: 'USD' | 'ZWG', paymentIds: string[], studentId: string) => {
+    const handleDeposit = async (accountId: string, total: number, currency: 'USD' | 'ZWG', paymentIds: string[]) => {
         if (paymentIds.length === 0) {
             toast({ variant: 'destructive', title: 'Error', description: 'No cash payments to deposit for this account.' });
             return;
@@ -396,7 +396,7 @@ function DailyDeposits() {
         };
         await addTransaction(newTransaction);
 
-        await markPaymentsAsDeposited(paymentIds, studentId);
+        await markPaymentsAsDeposited(paymentIds);
 
         toast({
             title: 'Cash Deposited',
@@ -457,7 +457,7 @@ function DailyDeposits() {
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeposit(accountId, data.total, data.currency, data.payments.map(p => p.id), data.payments[0].studentId)}>
+                                                    <AlertDialogAction onClick={() => handleDeposit(accountId, data.total, data.currency, data.payments.map(p => p.id))}>
                                                         Confirm Deposit
                                                     </AlertDialogAction>
                                                     </AlertDialogFooter>

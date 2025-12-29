@@ -17,11 +17,12 @@ service cloud.firestore {
       allow create: if isBursar();
       allow update: if isBursar();
       allow delete: if isBursar();
-
-      match /feesPayments/{feesPaymentId} {
-        allow read, list, create: if isBursar();
-        allow update, delete: if isBursar();
-      }
+    }
+    
+    match /payments/{paymentId} {
+        allow list, get: if isBursar();
+        allow create, delete: if isBursar();
+        allow update: if isBursar();
     }
 
     match /bankAccounts/{accountId} {

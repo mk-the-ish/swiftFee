@@ -396,7 +396,7 @@ function DeletePaymentDialog({ payment }: { payment: Payment }) {
         setError('');
         try {
             await reauthenticate(password);
-            await deletePayment(payment.id, payment.studentId, {
+            await deletePayment(payment, {
                 userId: user.uid,
                 userName: user.displayName || user.email,
             });
@@ -526,3 +526,4 @@ export default function StudentProfilePage() {
     
 
     
+
