@@ -223,7 +223,7 @@ function InvoiceDialog({ student, bankAccounts }: { student: Student, bankAccoun
                                     <p className="text-sm">HARARE Tel: (04)2937464</p>
                                 </div>
                             </div>
-                            <img src="/docs/council.png" alt="Council Logo" className="w-20 h-20" />
+                            <img src="/council.png" alt="Council Logo" className="w-20 h-20" />
                         </header>
                         <section className="py-6">
                             <h2 className="text-lg font-semibold">Invoice for {student.name}</h2>
