@@ -20,7 +20,7 @@ service cloud.firestore {
     }
     
     match /payments/{paymentId} {
-        allow list, get: if isBursar();
+        allow get, list: if isSignedIn();
         allow create, delete, update: if isBursar();
     }
 
