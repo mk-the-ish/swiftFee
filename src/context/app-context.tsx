@@ -355,32 +355,52 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return undefined;
   };
 
-  const deletePayment = async (payment: Payment, actor: { userId: string, userName: string }) => {
+  const deletePayment = async (payment: Payment, actor: { userId: string; userName: string }) => {
     if (!firestore) return;
     const paymentRef = doc(firestore, 'payments', payment.id);
     const studentRef = doc(firestore, 'students', payment.studentId);
-    
+    const transactionsRef = collection(firestore, 'transactions');
+  
     try {
-        const studentDoc = await getDoc(studentRef);
-        const studentData = studentDoc.data() as Student;
-
-        if (!studentData) {
-            throw new Error("Student not found.");
+      const studentDoc = await getDoc(studentRef);
+      const studentData = studentDoc.data() as Student;
+  
+      if (!studentData) {
+        throw new Error("Student not found.");
+      }
+  
+      const batch = writeBatch(firestore);
+  
+      // 1. Delete the payment document
+      batch.delete(paymentRef);
+  
+      // 2. Revert student's owing balance
+      const owingKey = `${payment.feeType}Owing` as keyof Student;
+      const currentOwing = (studentData[owingKey] as number) || 0;
+      const newOwing = currentOwing + payment.amountInUSD;
+      batch.update(studentRef, { [owingKey]: newOwing });
+  
+      // 3. Find and delete the associated transaction, if it exists
+      if (payment.paymentMethod !== 'Cash') {
+        const q = query(transactionsRef, where("relatedPaymentId", "==", payment.id));
+        const transactionSnapshot = await getDocs(q);
+        if (!transactionSnapshot.empty) {
+          const transactionDocToDelete = transactionSnapshot.docs[0];
+          batch.delete(transactionDocToDelete.ref);
         }
-        
-        const owingKey = `${payment.feeType}Owing` as keyof Student;
-        const currentOwing = (studentData[owingKey] as number) || 0;
-        const newOwing = currentOwing + payment.amountInUSD;
-
-        const batch = writeBatch(firestore);
-        batch.delete(paymentRef);
-        batch.update(studentRef, { [owingKey]: newOwing });
-
-        await batch.commit();
-        addAdminLog('Delete Payment', `Deleted payment ${payment.id} (${formatCurrency(payment.amount, payment.currency)}) for student ${studentData.name} (${payment.studentId}).`, actor);
-
+      }
+  
+      // Commit all operations
+      await batch.commit();
+  
+      // 4. Log the administrative action
+      addAdminLog(
+        'Delete Payment',
+        `Deleted payment ${payment.id} (${formatCurrency(payment.amount, payment.currency)}) for student ${studentData.name} (${payment.studentId}). Balance reverted.`,
+        actor
+      );
     } catch (err) {
-         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: paymentRef.path, operation: 'delete' }));
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: paymentRef.path, operation: 'delete' }));
     }
   };
 
@@ -394,14 +414,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       
       if (!transactionData) throw new Error("Transaction not found.");
 
+      // A transaction linked to a payment should not be deleted directly.
+      // The payment must be deleted, which will then delete the transaction.
+      if (transactionData.relatedPaymentId) {
+          throw new Error("This transaction is linked to a fee payment. Please delete the payment itself to remove this transaction.");
+      }
+
       await deleteDoc(transactionRef);
       addAdminLog(
         'Delete Transaction',
         `Deleted transaction: "${transactionData.description}" (${formatCurrency(transactionData.originalAmount, transactionData.currency)})`,
         actor
       );
-    } catch(err) {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: transactionRef.path, operation: 'delete' }));
+    } catch(err: any) {
+      if (err.code === 'permission-denied') {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: transactionRef.path, operation: 'delete' }));
+      } else {
+        // For other errors, like our custom one, we can re-throw them to be caught by the UI.
+        throw err;
+      }
     }
   };
 
