@@ -52,6 +52,7 @@ import {
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogHeader,
+  AlertDialogFooter,
   AlertDialogTitle,
   AlertDialogTrigger,
   AlertDialogDescription as AlertDialogDescriptionComponent,
