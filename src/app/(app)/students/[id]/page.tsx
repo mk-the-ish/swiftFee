@@ -215,7 +215,7 @@ function InvoiceDialog({ student, bankAccounts }: { student: Student, bankAccoun
                     <div className="p-8 border rounded-lg">
                         <header className="flex justify-between items-center pb-6 border-b">
                             <div className="flex items-center gap-4">
-                                <img src="/school.png" alt="School Logo" className="h-20 w-20" />
+                                <img src="/src/app/school.png" alt="School Logo" className="h-20 w-20" />
                                 <div>
                                     <h1 className="text-xl font-bold text-gray-900">MAKOMO COUNCIL PRIMARY SCHOOL</h1>
                                     <p className="text-sm">P.O.BOX EP 3</p>
@@ -223,7 +223,7 @@ function InvoiceDialog({ student, bankAccounts }: { student: Student, bankAccoun
                                     <p className="text-sm">HARARE Tel: (04)2937464</p>
                                 </div>
                             </div>
-                            <img src="/council.png" alt="Council Logo" className="w-20 h-20" />
+                            <img src="/src/app/council.png" alt="Council Logo" className="w-20 h-20" />
                         </header>
                         <section className="py-6">
                             <h2 className="text-lg font-semibold">Invoice for {student.name}</h2>
