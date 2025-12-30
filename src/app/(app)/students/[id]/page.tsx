@@ -296,23 +296,19 @@ function InvoiceDialog({ student, bankAccounts }: { student: Student, bankAccoun
                          <section className="pt-6">
                             <h3 className="text-md font-bold mb-2">Banking Details</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                               {levyAccount && (
                                  <div>
                                      <p className="font-semibold">LEVY</p>
-                                     <p>Bank: {levyAccount.bankName}</p>
-                                     <p>Branch: {levyAccount.branch}</p>
-                                     <p>Account No: {levyAccount.accountNumber}-USD</p>
-                                      {zwgAccount && <p>{zwgAccount.accountNumber}-ZIG</p>}
+                                     <p>Bank: CBZ</p>
+                                     <p>Branch: Virtual</p>
+                                     <p>Account No: 12626321850029-USD</p>
+                                                <p>12626321850019-ZIG</p>
                                  </div>
-                               )}
-                               {tuitionAccount && (
                                   <div>
                                      <p className="font-semibold">TUITION</p>
-                                     <p>Bank: {tuitionAccount.bankName}</p>
-                                     <p>Branch: {tuitionAccount.branch}</p>
-                                     <p>Account No: {tuitionAccount.accountNumber}-USD</p>
+                                     <p>Bank: ZB</p>
+                                     <p>Branch: Graniteside</p>
+                                     <p>Account No: 412000851868405-USD</p>
                                  </div>
-                               )}
                             </div>
                         </section>
                     </div>
