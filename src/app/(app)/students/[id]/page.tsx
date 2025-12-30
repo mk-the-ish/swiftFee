@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useAppContext } from '@/context/app-context';
 import {
@@ -36,7 +36,6 @@ import { User, Cake, Phone, Home, Printer, Pencil, FilePlus, X, Trash2 } from 'l
 import { format } from 'date-fns';
 import type { Student, Payment } from '@/lib/types';
 import { AddStudentForm } from '../components/add-student-form';
-import { Logo } from '@/components/icons';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -56,6 +55,7 @@ import {
   AlertDialogTrigger,
   AlertDialogDescription as AlertDialogDescriptionComponent,
 } from '@/components/ui/alert-dialog';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
 
 const billingFormSchema = z.object({
@@ -173,6 +173,34 @@ function InfoCard({ icon, label, value }: { icon: React.ElementType; label: stri
 }
 
 function InvoiceDialog({ student, bankAccounts }: { student: Student, bankAccounts: any[] }) {
+    const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | null>(null);
+    const [councilLogoUrl, setCouncilLogoUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchLogos = async () => {
+            const db = getFirestore();
+            const schoolLogoRef = doc(db, 'assets', 'schoolLogo');
+            const councilLogoRef = doc(db, 'assets', 'councilLogo');
+
+            try {
+                const schoolLogoSnap = await getDoc(schoolLogoRef);
+                const councilLogoSnap = await getDoc(councilLogoRef);
+
+                if (schoolLogoSnap.exists()) {
+                    setSchoolLogoUrl(schoolLogoSnap.data().url);
+                }
+
+                if (councilLogoSnap.exists()) {
+                    setCouncilLogoUrl(councilLogoSnap.data().url);
+                }
+            } catch (error) {
+                console.error('Error fetching logo URLs:', error);
+            }
+        };
+
+        fetchLogos();
+    }, []);
+
     const handlePrint = () => {
         const printContent = document.getElementById('invoice-print-area');
         const windowUrl = 'about:blank';
@@ -215,7 +243,7 @@ function InvoiceDialog({ student, bankAccounts }: { student: Student, bankAccoun
                     <div className="p-8 border rounded-lg">
                         <header className="flex justify-between items-center pb-6 border-b">
                             <div className="flex items-center gap-4">
-                                <img src="/src/app/school.png" alt="School Logo" className="h-20 w-20" />
+                                {schoolLogoUrl && <img src={schoolLogoUrl} alt="School Logo" className="h-20 w-20" />}
                                 <div>
                                     <h1 className="text-xl font-bold text-gray-900">MAKOMO COUNCIL PRIMARY SCHOOL</h1>
                                     <p className="text-sm">P.O.BOX EP 3</p>
@@ -223,7 +251,7 @@ function InvoiceDialog({ student, bankAccounts }: { student: Student, bankAccoun
                                     <p className="text-sm">HARARE Tel: (04)2937464</p>
                                 </div>
                             </div>
-                            <img src="/src/app/council.png" alt="Council Logo" className="w-20 h-20" />
+                            {councilLogoUrl && <img src={councilLogoUrl} alt="Council Logo" className="w-20 h-20" />}
                         </header>
                         <section className="py-6">
                             <h2 className="text-lg font-semibold">Invoice for {student.name}</h2>
